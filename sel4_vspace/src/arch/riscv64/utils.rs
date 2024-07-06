@@ -1,7 +1,6 @@
 use sel4_common::sel4_config::{
     seL4_PageBits, CONFIG_PT_LEVELS, KERNEL_ELF_BASE_OFFSET, PPTR_BASE_OFFSET, PT_INDEX_BITS,
 };
-use sel4_common::utils::pageBitsForSize;
 use sel4_common::{BIT, MASK};
 
 ///获得虚拟地址`addr`对应的`n`级VPN，

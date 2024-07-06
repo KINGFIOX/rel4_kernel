@@ -1,4 +1,4 @@
-use crate::cap::cap_t;
+use crate::arch::cap_t;
 use crate::structures::finaliseCap_ret;
 use sel4_common::structures::exception_t;
 

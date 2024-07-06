@@ -1,5 +1,5 @@
-pub use super::cap::CapTag;
-pub use super::cap::{cap_t, same_object_as};
+pub use super::arch::{cap_t, CapTag};
+pub use super::cap::same_object_as;
 pub use super::cap_rights::seL4_CapRights_t;
 pub use super::mdb::mdb_node_t;
 

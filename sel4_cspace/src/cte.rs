@@ -1,5 +1,6 @@
 use super::{
-    cap::{cap_t, is_cap_revocable, same_object_as, same_region_as, CapTag},
+    arch::{cap_t, CapTag},
+    cap::{is_cap_revocable, same_object_as, same_region_as},
     deps::{finaliseCap, post_cap_deletion, preemptionPoint},
     mdb::mdb_node_t,
     structures::{finaliseSlot_ret, resolveAddressBits_ret_t},

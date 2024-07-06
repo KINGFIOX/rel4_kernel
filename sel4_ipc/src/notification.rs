@@ -14,7 +14,6 @@ pub enum NtfnState {
     Active = 2,
 }
 
-/// The structure of a notification, which is used to send and receive signals
 plus_define_bitfield! {
     notification_t, 4, 0, 0, 0 => {
         new, 0 => {

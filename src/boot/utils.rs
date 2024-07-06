@@ -125,9 +125,10 @@ pub fn map_it_frame_cap(_vspace_cap: &cap_t, _frame_cap: &cap_t) {
 }
 
 #[no_mangle]
-#[cfg(target_arch="aarch64")]
-pub fn map_it_frame_cap(vspace_cap:&cap_t,frame_cap:&cap_t,exec:bool){
-    let vspace_root=vspace_cap.get_
+#[cfg(target_arch = "aarch64")]
+pub fn map_it_frame_cap(vspace_cap: &cap_t, frame_cap: &cap_t) {
+    // let vspace_root=vspace_cap.get_
+    todo!();
 }
 
 pub fn rust_create_unmapped_it_frame_cap(pptr: pptr_t, _use_large: bool) -> cap_t {

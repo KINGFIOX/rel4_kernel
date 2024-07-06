@@ -5,13 +5,12 @@
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 
+mod arch;
 mod cap;
 mod cap_rights;
 mod cte;
 mod mdb;
 mod structures;
-mod arch;
-
 
 /// 需要外部实现的接口
 pub mod deps;

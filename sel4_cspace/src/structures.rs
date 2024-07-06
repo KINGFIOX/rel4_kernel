@@ -1,7 +1,7 @@
 use crate::cte::cte_t;
 use sel4_common::structures::exception_t;
 
-use super::cap::cap_t;
+use super::arch::cap_t;
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
