@@ -2,6 +2,8 @@ pub mod zombie;
 
 use sel4_common::{plus_define_bitfield, sel4_config::*, utils::pageBitsForSize, MASK};
 
+use crate::arch::CapTag;
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 struct CNodeCapData {
@@ -25,25 +27,7 @@ impl CNodeCapData {
     }
 }
 
-/// Cap 在内核态中的种类枚举
-#[derive(Eq, PartialEq, Debug)]
-pub enum CapTag {
-    CapNullCap = 0,
-    CapUntypedCap = 2,
-    CapEndpointCap = 4,
-    CapNotificationCap = 6,
-    CapReplyCap = 8,
-    CapCNodeCap = 10,
-    CapThreadCap = 12,
-    CapIrqControlCap = 14,
-    CapIrqHandlerCap = 16,
-    CapZombieCap = 18,
-    CapDomainCap = 20,
-    CapFrameCap = 1,
-    CapPageTableCap = 3,
-    CapASIDControlCap = 11,
-    CapASIDPoolCap = 13,
-}
+
 
 // cap_t 表示一个capability，由两个机器字组成，包含了类型、对象元数据以及指向内核对象的指针。
 // 每个类型的capability的每个字段都实现了get和set方法。
@@ -93,25 +77,6 @@ plus_define_bitfield! {
             capZombieType, get_zombie_type, set_zombie_type, 0, 0, 7, 0, false
         },
         new_domain_cap, CapTag::CapDomainCap as usize => {},
-        new_frame_cap, CapTag::CapFrameCap as usize => {
-            capFMappedASID, get_frame_mapped_asid, set_frame_mapped_asid, 1, 48, 16, 0, false,
-            capFBasePtr, get_frame_base_ptr, set_frame_base_ptr, 1, 9, 39, 0, true,
-            capFSize, get_frame_size, set_frame_size, 0, 57, 2, 0, false,
-            capFVMRights, get_frame_vm_rights, set_frame_vm_rights, 0, 55, 2, 0, false,
-            capFIsDevice, get_frame_is_device, set_frame_is_device, 0, 54, 1, 0, false,
-            capFMappedAddress, get_frame_mapped_address, set_frame_mapped_address, 0, 0, 39, 0, true
-        },
-        new_page_table_cap, CapTag::CapPageTableCap as usize => {
-            capPTMappedASID, get_pt_mapped_asid, set_pt_mapped_asid, 1, 48, 16, 0, false,
-            capPTBasePtr, get_pt_base_ptr, set_pt_base_ptr, 1, 9, 39, 0, true,
-            capPTIsMapped, get_pt_is_mapped, set_pt_is_mapped, 0, 39, 1, 0, false,
-            capPTMappedAddress, get_pt_mapped_address, set_pt_mapped_address, 0, 0, 39, 0, false
-        },
-        new_asid_control_cap, CapTag::CapASIDControlCap as usize => {},
-        new_asid_pool_cap, CapTag::CapASIDPoolCap as usize => {
-            capASIDBase, get_asid_base, set_asid_base, 0, 43, 16, 0, false,
-            capASIDPool, get_asid_pool, set_asid_pool, 0, 0, 37, 2, true
-        }
     }
 }
 

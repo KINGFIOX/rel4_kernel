@@ -10,6 +10,8 @@ mod cap_rights;
 mod cte;
 mod mdb;
 mod structures;
+mod arch;
+
 
 /// 需要外部实现的接口
 pub mod deps;
