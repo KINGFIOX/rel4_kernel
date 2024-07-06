@@ -57,8 +57,6 @@ pub fn dmb() {
     }
 }
 
-
-
 // pub fn cleanInvalidateL1Caches()
 // {
 //     dsb();
@@ -67,7 +65,6 @@ pub fn dmb() {
 //     invalidate_I_PoU();
 //     dsb();
 // }
-
 
 // void cleanInvalidate_D_PoC(void)
 // {

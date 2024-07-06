@@ -1,9 +1,5 @@
 use core::intrinsics::{likely, unlikely};
-
-use sel4_common::arch::{
-    fault_messages, msgInfoRegister, msgRegister, n_exceptionMessage, n_msgRegisters,
-    n_syscallMessage, FaultIP, NextIP,
-};
+use sel4_common::arch::{msgRegisterNum, n_exceptionMessage, n_syscallMessage, ArchReg, ArchTCB};
 use sel4_common::fault::*;
 use sel4_common::message_info::seL4_MessageInfo_t;
 use sel4_common::utils::{convert_to_mut_type_ref, pageBitsForSize};
@@ -25,14 +21,12 @@ use super::structures::lookupSlot_raw_ret_t;
 
 use super::thread_state::*;
 
-use crate::arch::arch_tcb_t;
-
 #[repr(C)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone)]
 /// Structure for the TCB
 pub struct tcb_t {
     /// The architecture registers of the TCB
-    pub tcbArch: arch_tcb_t,
+    pub tcbArch: ArchTCB,
     /// The state of the TCB
     pub tcbState: thread_state_t,
     /// The bound notification of the TCB
@@ -79,7 +73,7 @@ impl tcb_t {
     #[inline]
     /// Initialize the TCB
     pub fn init(&mut self) {
-        self.tcbArch = arch_tcb_t::default();
+        self.tcbArch = ArchTCB::default();
     }
 
     #[inline]
@@ -357,8 +351,10 @@ impl tcb_t {
     /// Susupend the TCB, set the state to ThreadStateInactive and dequeue from the scheduling queue
     pub fn suspend(&mut self) {
         if self.get_state() == ThreadState::ThreadStateRunning {
-            self.tcbArch
-                .set_register(FaultIP, self.tcbArch.get_register(NextIP));
+            self.tcbArch.set_register(
+                ArchReg::FaultIP,
+                self.tcbArch.get_register(ArchReg::FaultIP),
+            );
         }
         // setThreadState(self as *mut Self, ThreadStateInactive);
         set_thread_state(self, ThreadState::ThreadStateInactive);
@@ -449,7 +445,7 @@ impl tcb_t {
         res: &mut [pptr_t; seL4_MsgMaxExtraCaps],
     ) -> Result<(), seL4_Fault_t> {
         let info =
-            seL4_MessageInfo_t::from_word_security(self.tcbArch.get_register(msgInfoRegister));
+            seL4_MessageInfo_t::from_word_security(self.tcbArch.get_register(ArchReg::MsgInfo));
         if let Some(buffer) = self.lookup_ipc_buffer(false) {
             let length = info.get_extra_caps();
             let mut i = 0;
@@ -481,7 +477,7 @@ impl tcb_t {
         buf: Option<&seL4_IPCBuffer>,
     ) -> Result<(), seL4_Fault_t> {
         let info =
-            seL4_MessageInfo_t::from_word_security(self.tcbArch.get_register(msgInfoRegister));
+            seL4_MessageInfo_t::from_word_security(self.tcbArch.get_register(ArchReg::MsgInfo));
         if let Some(buffer) = buf {
             let length = info.get_extra_caps();
             let mut i = 0;
@@ -534,15 +530,15 @@ impl tcb_t {
     /// # Returns
     /// The next offset
     pub fn set_mr(&mut self, offset: usize, reg: usize) -> usize {
-        if offset >= n_msgRegisters {
+        if offset >= msgRegisterNum {
             if let Some(ipc_buffer) = self.lookup_mut_ipc_buffer(true) {
                 ipc_buffer.msg[offset] = reg;
                 return offset + 1;
             } else {
-                return n_msgRegisters;
+                return msgRegisterNum;
             }
         } else {
-            self.tcbArch.set_register(msgRegister[offset], reg);
+            self.tcbArch.set_register(ArchReg::Msg(offset), reg);
             return offset + 1;
         }
     }
@@ -611,10 +607,10 @@ impl tcb_t {
     /// The number of registers(contains ipc buffer) copied
     pub fn copy_mrs(&self, receiver: &mut tcb_t, length: usize) -> usize {
         let mut i = 0;
-        while i < length && i < n_msgRegisters {
+        while i < length && i < msgRegisterNum {
             receiver
                 .tcbArch
-                .set_register(msgRegister[i], self.tcbArch.get_register(msgRegister[i]));
+                .set_register(ArchReg::Msg(i), self.tcbArch.get_register(ArchReg::Msg(i)));
             i += 1;
         }
         if let (Some(send_buffer), Some(recv_buffer)) = (
@@ -640,23 +636,17 @@ impl tcb_t {
     /// * `id` - The fault message id
     /// * `length` - The length of the message registers to copy
     pub fn copy_fault_mrs(&self, receiver: &mut Self, id: usize, length: usize) {
-        let len = if length < n_msgRegisters {
-            length
-        } else {
-            n_msgRegisters
-        };
-        let mut i = 0;
-        while i < len {
+        let len = core::cmp::min(length, msgRegisterNum);
+
+        for i in 0..len {
             receiver.tcbArch.set_register(
-                msgRegister[i],
-                self.tcbArch.get_register(fault_messages[id][i]),
+                ArchReg::Msg(i),
+                self.tcbArch.get_register(ArchReg::FaultMessage(id, i)),
             );
-            i += 1;
         }
         if let Some(buffer) = receiver.lookup_mut_ipc_buffer(true) {
-            while i < length {
-                buffer.msg[i] = self.tcbArch.get_register(fault_messages[id][i]);
-                i += 1;
+            for i in len..length {
+                buffer.msg[i] = self.tcbArch.get_register(ArchReg::FaultMessage(id, i));
             }
         }
     }
@@ -668,25 +658,20 @@ impl tcb_t {
     /// * `id` - The fault message id
     /// * `length` - The length of the message registers to copy
     pub fn copy_fault_mrs_for_reply(&self, receiver: &mut Self, id: usize, length: usize) {
-        let len = if length < n_msgRegisters {
-            length
-        } else {
-            n_msgRegisters
-        };
-        let mut i = 0;
-        while i < len {
+        let len = core::cmp::min(length, msgRegisterNum);
+
+        for i in 0..len {
             receiver.tcbArch.set_register(
-                fault_messages[id][i],
-                self.tcbArch.get_register(msgRegister[i]),
+                ArchReg::FaultMessage(id, i),
+                self.tcbArch.get_register(ArchReg::Msg(i)),
             );
-            i += 1;
         }
+
         if let Some(buffer) = self.lookup_ipc_buffer(false) {
-            while i < length {
+            for i in len..length {
                 receiver
                     .tcbArch
-                    .set_register(fault_messages[id][i], buffer.msg[i]);
-                i += 1;
+                    .set_register(ArchReg::FaultMessage(id, i), buffer.msg[i])
             }
         }
     }
@@ -710,7 +695,10 @@ impl tcb_t {
     pub fn set_fault_mrs(&self, receiver: &mut Self) -> usize {
         match self.tcbFault.get_fault_type() {
             FaultType::CapFault => {
-                receiver.set_mr(seL4_CapFault_IP, self.tcbArch.get_register(FaultIP));
+                receiver.set_mr(
+                    seL4_CapFault_IP,
+                    self.tcbArch.get_register(ArchReg::FaultIP),
+                );
                 receiver.set_mr(seL4_CapFault_Addr, self.tcbFault.cap_fault_get_address());
                 receiver.set_mr(
                     seL4_CapFault_InRecvPhase,
@@ -738,7 +726,7 @@ impl tcb_t {
                 )
             }
             FaultType::VMFault => {
-                receiver.set_mr(seL4_VMFault_IP, self.tcbArch.get_register(FaultIP));
+                receiver.set_mr(seL4_VMFault_IP, self.tcbArch.get_register(ArchReg::FaultIP));
                 receiver.set_mr(seL4_VMFault_Addr, self.tcbFault.vm_fault_get_address());
                 receiver.set_mr(
                     seL4_VMFault_PrefetchFault,

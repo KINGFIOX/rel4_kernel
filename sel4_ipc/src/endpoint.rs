@@ -1,5 +1,5 @@
 use crate::transfer::Transfer;
-use sel4_common::arch::badgeRegister;
+use sel4_common::arch::ArchReg;
 use sel4_common::plus_define_bitfield;
 use sel4_common::utils::{convert_to_mut_type_ref, convert_to_option_mut_type_ref};
 use sel4_task::{
@@ -20,6 +20,7 @@ pub enum EPState {
     Recv = 2,
 }
 
+// The structure of an endpoint, which is used to send and receive IPC
 plus_define_bitfield! {
     endpoint_t, 2, 0, 0, 0 => {
         new, 0 => {
@@ -213,7 +214,7 @@ impl endpoint_t {
                     self.set_queue(&queue);
                 } else {
                     // NBReceive failed
-                    thread.tcbArch.set_register(badgeRegister, 0);
+                    thread.tcbArch.set_register(ArchReg::Badge, 0);
                 }
             }
             EPState::Send => {

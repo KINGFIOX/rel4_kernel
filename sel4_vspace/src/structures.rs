@@ -4,7 +4,11 @@ use core::{
 };
 
 use sel4_common::{
-    fault::lookup_fault_t, sel4_config::{asidLowBits, PPTR_BASE}, structures::exception_t, utils::convert_to_option_mut_type_ref, BIT
+    fault::lookup_fault_t,
+    sel4_config::{asidLowBits, PPTR_BASE},
+    structures::exception_t,
+    utils::convert_to_option_mut_type_ref,
+    BIT,
 };
 
 use crate::pte_t;
@@ -20,7 +24,6 @@ pub type vptr_t = usize;
 
 /// 进程对应的asid所属的类型
 pub type asid_t = usize;
-
 
 #[repr(C)]
 #[derive(Copy, Clone)]

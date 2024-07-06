@@ -1,6 +1,5 @@
 use riscv::register::satp;
 
-
 ///`satp`寄存器对应的内存备份
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -41,8 +40,8 @@ pub fn sfence_local() {
 }
 
 ///对汇编指令`sfence.vma`的简单封装，清空`cache`、`tlb`
-/// 
-/// Risc-v's sfence.vma 
+///
+/// Risc-v's sfence.vma
 #[cfg(not(feature = "ENABLE_SMP"))]
 #[inline]
 pub fn sfence() {
@@ -53,7 +52,7 @@ pub fn sfence() {
 }
 
 ///设置页表，创建一个新的satp的值，然后将其写入satp寄存器
-/// 
+///
 /// Assign addr to satp.
 #[inline]
 #[no_mangle]

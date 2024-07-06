@@ -10,7 +10,7 @@ use crate::structures::{
 };
 use crate::{BIT, ROUND_DOWN};
 use log::debug;
-use sel4_common::arch::{capRegister, NextIP};
+use sel4_common::arch::{ArchReg, ArchTCB};
 use sel4_common::sel4_config::{
     asidLowBits, seL4_PageBits, seL4_PageTableBits, seL4_SlotBits, seL4_TCBBits, tcbBuffer,
     tcbCTable, tcbVTable, wordBits, CONFIG_MAX_NUM_NODES, CONFIG_NUM_DOMAINS, CONFIG_PT_LEVELS,
@@ -132,7 +132,7 @@ unsafe fn create_initial_thread(
 ) -> *mut tcb_t {
     let tcb = convert_to_mut_type_ref::<tcb_t>(rootserver.tcb + TCB_OFFSET);
     tcb.tcbTimeSlice = CONFIG_TIME_SLICE;
-    tcb.tcbArch = arch_tcb_t::default();
+    tcb.tcbArch = ArchTCB::default();
 
     let cnode = convert_to_mut_type_ref::<cte_t>(root_cnode_cap.get_cap_ptr());
     let ipc_buf_slot = cnode.get_offset_slot(seL4_CapInitThreadIPCBuffer);
@@ -161,8 +161,8 @@ unsafe fn create_initial_thread(
     );
 
     tcb.tcbIPCBuffer = ipcbuf_vptr;
-    tcb.tcbArch.set_register(capRegister, bi_frame_vptr);
-    tcb.tcbArch.set_register(NextIP, ui_v_entry);
+    tcb.tcbArch.set_register(ArchReg::Cap, bi_frame_vptr);
+    tcb.tcbArch.set_register(ArchReg::NextIP, ui_v_entry);
     tcb.tcbMCP = seL4_MaxPrio;
     tcb.tcbPriority = seL4_MaxPrio;
     set_thread_state(tcb, ThreadState::ThreadStateRunning);

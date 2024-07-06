@@ -1,6 +1,7 @@
 mod decode_cnode_invocation;
 mod decode_domain_invocation;
 pub mod decode_irq_invocation;
+
 mod decode_mmu_invocation;
 mod decode_tcb_invocation;
 mod decode_untyped_invocation;

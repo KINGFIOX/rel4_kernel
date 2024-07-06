@@ -119,6 +119,6 @@ pub fn set_vm_root(vspace_root: &cap_t) -> Result<(), lookup_fault_t> {
     ret
 }
 
-pub fn activate_kernel_window(){
+pub fn activate_kernel_window() {
     todo!()
 }

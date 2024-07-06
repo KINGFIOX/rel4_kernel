@@ -64,4 +64,4 @@ jobs:
       continue-on-error: true
     - run: cat rel4_kernel/build/1.log
     - name: Check Result
-      run: cat rel4_kernel/build/1.log | grep "All is well in the universe"
+      run: rel4_kernel/.github/workflows/parse.py rel4_kernel/build/1.log

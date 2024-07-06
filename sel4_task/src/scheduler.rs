@@ -1,5 +1,5 @@
 //! This module contains the implementation of the scheduler for the sel4_task crate.
-//! 
+//!
 //! It includes functions and data structures related to task scheduling and thread management.
 //! The scheduler supports Symmetric Multiprocessing (SMP) and provides functionality for choosing
 //! new threads to run, managing ready queues, and handling domain scheduling.
@@ -8,7 +8,7 @@
 use crate::deps::{doMaskReschedule, kernel_stack_alloc, ksIdleThreadTCB};
 use core::arch::asm;
 use core::intrinsics::{likely, unlikely};
-use sel4_common::arch::{FaultIP, NextIP};
+use sel4_common::arch::ArchReg;
 #[cfg(feature = "ENABLE_SMP")]
 use sel4_common::sel4_config::{seL4_TCBBits, CONFIG_MAX_NUM_NODES};
 use sel4_common::sel4_config::{
@@ -530,9 +530,9 @@ pub fn activateThread() {
             return;
         }
         ThreadState::ThreadStateRestart => {
-            let pc = thread.tcbArch.get_register(FaultIP);
+            let pc = thread.tcbArch.get_register(ArchReg::FaultIP);
             // setNextPC(thread, pc);
-            thread.tcbArch.set_register(NextIP, pc);
+            thread.tcbArch.set_register(ArchReg::NextIP, pc);
             // setThreadState(thread, ThreadStateRunning);
             set_thread_state(thread, ThreadState::ThreadStateRunning);
         }
@@ -552,14 +552,15 @@ pub fn activateThread() {
 #[cfg(not(feature = "ENABLE_SMP"))]
 /// Create the idle thread.
 pub fn create_idle_thread() {
-    use crate::{deps::ksIdleThreadTCB, Arch_configureIdleThread};
+    use crate::deps::ksIdleThreadTCB;
 
     unsafe {
         let pptr = ksIdleThreadTCB as usize as *mut usize;
         ksIdleThread = pptr.add(TCB_OFFSET) as usize;
         // let tcb = convert_to_mut_type_ref::<tcb_t>(ksIdleThread as usize);
         let tcb = get_idle_thread();
-        Arch_configureIdleThread(tcb.tcbArch);
+        // Arch_configureIdleThread(tcb.tcbArch);
+        tcb.tcbArch.config_idle_thread(idle_thread as usize);
         set_thread_state(tcb, ThreadState::ThreadStateIdleThreadState);
     }
 }
