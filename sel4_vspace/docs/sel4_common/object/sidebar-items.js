@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"constant":["seL4_ObjectTypeCount"],"enum":["ObjectType"]};

@@ -1,1 +1,0 @@
-window.ALL_CRATES = ["bare_metal","bit_field","bitflags","lock_api","log","riscv","scopeguard","sel4_common","sel4_cspace","sel4_vspace","spin"];

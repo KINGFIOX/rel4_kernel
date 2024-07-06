@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["HgatpValues"],"fn":["read"],"struct":["Hgatp"]};

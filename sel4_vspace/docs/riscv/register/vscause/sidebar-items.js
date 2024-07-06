@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["clear_interrupt","read","set_interrupt"],"struct":["Vscause"]};

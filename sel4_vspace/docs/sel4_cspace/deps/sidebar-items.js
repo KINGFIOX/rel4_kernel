@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["Arch_finaliseCap","finaliseCap","post_cap_deletion","preemptionPoint"]};

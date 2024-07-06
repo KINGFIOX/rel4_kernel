@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["PhysAddrSv32","VirtAddrSv32"]};

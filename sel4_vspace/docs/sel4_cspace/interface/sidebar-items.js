@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["CapTag"],"fn":["cte_insert","cte_move","cte_swap","insert_new_cap","resolve_address_bits","same_object_as"],"struct":["cap_t","cte_t","finaliseCap_ret","mdb_node_t","seL4_CapRights_t"]};

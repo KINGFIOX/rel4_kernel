@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["clear_seip","clear_ssip","clear_stip","read","set_seip","set_ssip","set_stip"],"struct":["Vsip"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["MessageLabel"],"struct":["seL4_MessageInfo_t"]};

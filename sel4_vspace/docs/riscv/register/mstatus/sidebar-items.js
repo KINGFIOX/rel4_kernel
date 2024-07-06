@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["FS","MPP","SPP","XS"],"fn":["clear_mie","clear_sie","clear_uie","read","set_fs","set_mie","set_mpie","set_mpp","set_sie","set_spie","set_spp","set_uie","set_upie"],"struct":["Mstatus"]};

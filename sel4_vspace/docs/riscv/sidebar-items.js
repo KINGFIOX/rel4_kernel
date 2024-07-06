@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"macro":["use_sv32","use_sv39","use_sv48"],"mod":["addr","asm","interrupt","paging","register"]};

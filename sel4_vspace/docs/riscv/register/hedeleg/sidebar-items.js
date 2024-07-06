@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["clear_ex0","clear_ex1","clear_ex12","clear_ex13","clear_ex15","clear_ex2","clear_ex3","clear_ex4","clear_ex5","clear_ex6","clear_ex7","clear_ex8","read","set_ex0","set_ex1","set_ex12","set_ex13","set_ex15","set_ex2","set_ex3","set_ex4","set_ex5","set_ex6","set_ex7","set_ex8"],"struct":["Hedeleg"]};

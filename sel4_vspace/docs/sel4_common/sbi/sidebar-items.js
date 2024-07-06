@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["clear_ipi","console_getchar","console_putchar","get_time","remote_sfence_vma","sbi_call","set_timer","shutdown","sys_write"]};
