@@ -1,5 +1,8 @@
+use crate::syscall::invocation::decode::current_syscall_error;
+use log::debug;
+use sel4_common::sel4_config::seL4_IllegalOperation;
 use sel4_common::{
-    message_info::MessageLabel,
+    arch::MessageLabel,
     structures::{exception_t, seL4_IPCBuffer},
 };
 use sel4_cspace::interface::{cap_t, cte_t, CapTag};
@@ -30,9 +33,9 @@ fn decode_page_table_invocation(
     buffer: Option<&seL4_IPCBuffer>,
 ) -> exception_t {
     match label {
-        MessageLabel::RISCVPageTableUnmap => decode_page_table_unmap(cte),
+        MessageLabel::ARMPageTableUnmap => decode_page_table_unmap(cte),
 
-        MessageLabel::RISCVPageTableMap => decode_page_table_map(length, cte, buffer),
+        MessageLabel::ARMPageTableMap => decode_page_table_map(length, cte, buffer),
         _ => {
             debug!("RISCVPageTable: Illegal Operation");
             unsafe {
@@ -62,5 +65,16 @@ fn decode_asid_control(
 }
 
 fn decode_asid_pool(label: MessageLabel, cte: &mut cte_t) -> exception_t {
+    exception_t::EXCEPTION_NONE
+}
+
+fn decode_page_table_unmap(pt_cte: &mut cte_t) -> exception_t {
+    exception_t::EXCEPTION_NONE
+}
+fn decode_page_table_map(
+    length: usize,
+    pt_cte: &mut cte_t,
+    buffer: Option<&seL4_IPCBuffer>,
+) -> exception_t {
     exception_t::EXCEPTION_NONE
 }
