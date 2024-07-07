@@ -7,8 +7,6 @@ use crate::{
     syscall::slowpath,
 };
 
-use sel4_task::*;
-
 use super::exception::{handleUserLevelFault, handleVMFaultEvent};
 use crate::interrupt::handler::handleInterruptEntry;
 

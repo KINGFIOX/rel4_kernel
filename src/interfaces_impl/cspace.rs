@@ -14,6 +14,7 @@ use sel4_vspace::{
     asid_pool_t, asid_t, delete_asid, delete_asid_pool, find_vspace_for_asid, pte_t, unmapPage,
 };
 
+#[cfg(target_arch = "riscv64")]
 #[no_mangle]
 pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret {
     let mut fc_ret = finaliseCap_ret::default();
@@ -65,11 +66,22 @@ pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret {
     fc_ret
 }
 
+#[cfg(target_arch = "aarch64")]
+extern "C" {
+    pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret;
+}
+
 #[no_mangle]
 pub fn finaliseCap(cap: &cap_t, _final: bool, _exposed: bool) -> finaliseCap_ret {
     let mut fc_ret = finaliseCap_ret::default();
 
     if cap.isArchCap() {
+        // For Removing Warnings
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            return Arch_finaliseCap(cap, _final);
+        }
+        #[cfg(target_arch = "riscv64")]
         return Arch_finaliseCap(cap, _final);
     }
     match cap.get_cap_type() {

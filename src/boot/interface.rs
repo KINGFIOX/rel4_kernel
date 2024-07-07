@@ -1,9 +1,8 @@
 use sel4_task::{get_idle_thread, set_current_thread, tcb_t};
 
-use super::{
-    mm::{avail_p_regs_addr, avail_p_regs_size},
-    try_init_kernel,
-};
+use crate::arch::try_init_kernel;
+
+use super::mm::{avail_p_regs_addr, avail_p_regs_size};
 
 #[no_mangle]
 pub fn pRegsToR(ptr: *const usize, size: usize) {

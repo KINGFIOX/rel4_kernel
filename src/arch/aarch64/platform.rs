@@ -46,7 +46,8 @@ pub fn init_cpu() -> bool {
     }
     true
 }
-pub fn init_freemem(ui_p_reg: p_region_t, dtb_p_reg: p_region_t) -> bool {
+
+pub fn init_freemem(ui_p_reg: region_t, dtb_p_reg: p_region_t) -> bool {
     extern "C" {
         fn ki_end();
     }
@@ -82,12 +83,16 @@ pub fn init_freemem(ui_p_reg: p_region_t, dtb_p_reg: p_region_t) -> bool {
         }
     } else {
         unsafe {
-            reserve_region(ui_p_reg);
+            reserve_region(p_region_t {
+                start: ui_p_reg.start,
+                end: ui_p_reg.end,
+            });
         }
     }
 
     unsafe { rust_init_freemem(avail_p_regs_size, avail_p_regs_addr, index, res_reg.clone()) }
 }
+
 pub fn cleanInvalidateL1Caches() {
     unsafe {
         asm!("dsb sy;"); // DSB SY
@@ -105,6 +110,7 @@ pub fn invalidateLocalTLB() {
         asm!("isb;"); // ISB SY
     }
 }
+
 fn cleanInvalidate_D_PoC() {
     let clid = readCLID();
     let loc = (clid >> 24) & (1 << 3 - 1);
@@ -114,6 +120,7 @@ fn cleanInvalidate_D_PoC() {
         }
     }
 }
+
 #[inline]
 fn cleanInvalidate_D_by_level(level: usize) {
     let lsize = readCacheSize(level);

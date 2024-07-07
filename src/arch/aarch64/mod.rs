@@ -1,13 +1,16 @@
+mod boot;
 mod c_traps;
 mod exception;
 mod ffi;
+mod pg;
 mod platform;
 
 pub mod arm_gic;
 
 use crate::config::RESET_CYCLES;
+pub use boot::try_init_kernel;
 pub use c_traps::restore_user_context;
-pub use platform::{cleanInvalidateL1Caches, init_cpu, init_freemem, invalidateLocalTLB};
+pub use platform::{init_cpu, init_freemem};
 use sel4_common::arch::set_timer;
 
 pub fn read_stval() -> usize {
