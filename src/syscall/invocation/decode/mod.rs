@@ -10,7 +10,7 @@ use core::intrinsics::unlikely;
 
 use log::debug;
 use sel4_common::{
-    message_info::MessageLabel,
+    arch::MessageLabel,
     sel4_config::seL4_InvalidCapability,
     structures::{exception_t, seL4_IPCBuffer},
     utils::convert_to_mut_type_ref,

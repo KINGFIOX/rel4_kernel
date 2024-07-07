@@ -1,6 +1,6 @@
 use crate::structures::lookupCapAndSlot_ret_t;
 use crate::syscall::handle_fault;
-use sel4_common::message_info::MessageLabel;
+use sel4_common::arch::MessageLabel;
 use sel4_common::structures::exception_t;
 use sel4_cspace::interface::{cap_t, cte_t};
 use sel4_task::tcb_t;

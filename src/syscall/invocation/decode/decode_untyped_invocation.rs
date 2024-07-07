@@ -2,7 +2,7 @@ use crate::BIT;
 use log::debug;
 use sel4_common::fault::lookup_fault_t;
 use sel4_common::{
-    message_info::MessageLabel, object::ObjectType, sel4_config::*, structures::*,
+    arch::MessageLabel, object::ObjectType, sel4_config::*, structures::*,
     utils::convert_to_mut_type_ref,
 };
 use sel4_cspace::interface::{cap_t, cte_t, CapTag};

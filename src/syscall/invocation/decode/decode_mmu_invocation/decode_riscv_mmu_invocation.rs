@@ -6,8 +6,8 @@ use core::intrinsics::unlikely;
 // }, BIT, MASK};
 
 use log::debug;
+use sel4_common::arch::MessageLabel;
 use sel4_common::fault::lookup_fault_t;
-use sel4_common::message_info::MessageLabel;
 use sel4_common::sel4_config::{
     asidInvalid, asidLowBits, nASIDPools, seL4_AlignmentError, seL4_DeleteFirst, seL4_FailedLookup,
     seL4_IllegalOperation, seL4_InvalidArgument, seL4_InvalidCapability, seL4_PageBits,
