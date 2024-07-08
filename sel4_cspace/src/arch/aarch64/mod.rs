@@ -1,6 +1,9 @@
 use sel4_common::{plus_define_bitfield, structures::exception_t};
 
-use crate::{cte::deriveCap_ret, interface::cte_t};
+use crate::{
+    cte::deriveCap_ret,
+    interface::{cte_t, seL4_CapRights_t},
+};
 
 /// Cap 在内核态中的种类枚举
 #[derive(Eq, PartialEq, Debug)]
@@ -111,7 +114,7 @@ plus_define_bitfield! {
     }
 }
 
-impl cte_t{
+impl cte_t {
     pub fn arch_derive_cap(&mut self, cap: &cap_t) -> deriveCap_ret {
         let mut ret = deriveCap_ret {
             status: exception_t::EXCEPTION_NONE,
@@ -127,9 +130,35 @@ impl cte_t{
                     ret.status = exception_t::EXCEPTION_SYSCALL_ERROR;
                 }
             }
+            CapTag::CapPageUpperDirectoryCap => {
+                if cap.get_pud_is_mapped() != 0 {
+                    ret.cap = cap.clone();
+                    ret.status = exception_t::EXCEPTION_NONE;
+                } else {
+                    ret.cap = cap_t::new_null_cap();
+                    ret.status = exception_t::EXCEPTION_SYSCALL_ERROR;
+                }
+            }
+            CapTag::CapPageDirectoryCap => {
+                if cap.get_pud_is_mapped() != 0 {
+                    ret.cap = cap.clone();
+                    ret.status = exception_t::EXCEPTION_NONE;
+                } else {
+                    ret.cap = cap_t::new_null_cap();
+                    ret.status = exception_t::EXCEPTION_SYSCALL_ERROR;
+                }
+            }
+            CapTag::CapPageTableCap => {
+                if cap.get_pud_is_mapped() != 0 {
+                    ret.cap = cap.clone();
+                    ret.status = exception_t::EXCEPTION_NONE;
+                } else {
+                    ret.cap = cap_t::new_null_cap();
+                    ret.status = exception_t::EXCEPTION_SYSCALL_ERROR;
+                }
+            }
             CapTag::CapFrameCap => {
                 let mut newCap = cap.clone();
-                newCap.set_frame_mapped_address(0);
                 newCap.set_frame_mapped_asid(0);
                 ret.cap = newCap;
             }
@@ -143,3 +172,9 @@ impl cte_t{
         ret
     }
 }
+
+// pub fn arch_mask_cap_rights(rights: seL4_CapRights_t, cap: &cap_t) -> cap_t {
+//     if cap.get_cap_type() == CapTag::CapFrameCap as usize {
+//         let mut vm_rights = vm_rights_from_word(cap.get_frame_vm_rights());
+//     }
+// }
