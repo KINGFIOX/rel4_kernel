@@ -5,6 +5,7 @@ mod pte;
 mod structures;
 mod utils;
 mod vm_rights;
+pub use structures::*;
 pub use interface::{rust_map_kernel_window, set_vm_root};
 pub use machine::{setCurrentUserVSpaceRoot, ttbr_new};
 pub use pte::PTEFlags;

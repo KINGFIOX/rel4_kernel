@@ -285,6 +285,7 @@ fn decode_frame_map(
         }
 
         let lu_ret = lvl1pt.lookup_pt_slot(vaddr);
+        #[cfg(target_arch="riscv64")]
         if lu_ret.ptBitsLeft != pageBitsForSize(frame_size) {
             unsafe {
                 current_lookup_fault = lookup_fault_t::new_missing_cap(lu_ret.ptBitsLeft);
@@ -412,6 +413,7 @@ fn decode_page_table_map(
     if let Some((lvl1pt, asid)) = get_vspace(&lvl1pt_cap) {
         let lu_ret = lvl1pt.lookup_pt_slot(vaddr);
         let lu_slot = convert_to_mut_type_ref::<pte_t>(lu_ret.ptSlot as usize);
+        #[cfg(target_arch="riscv64")]
         if lu_ret.ptBitsLeft == seL4_PageBits || lu_slot.get_valid() != 0 {
             debug!("RISCVPageTableMap: All objects mapped at this address");
             unsafe {

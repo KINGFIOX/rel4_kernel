@@ -4,6 +4,8 @@ mod pte;
 mod satp;
 mod utils;
 mod vm_rights;
+mod structures;
+pub use structures::*;
 pub use interface::set_vm_root;
 pub use pagetable::{activate_kernel_vspace, copyGlobalMappings, rust_map_kernel_window};
 pub use pte::PTEFlags;

@@ -3,6 +3,7 @@ use core::intrinsics::unlikely;
 use crate::{
     arch::aarch64::{
         machine::{clean_by_va_pou, invalidate_local_tlb_asid},
+        structures::lookupPTSlot_ret_t,
         vm_rights::vm_rights_t,
     },
     asid_t, find_vspace_for_asid, pptr_to_paddr, pte_t, vm_attributes_t, vptr_t,
@@ -188,5 +189,26 @@ impl pte_t {
             convert_ref_type_to_usize(ptSlot),
             pptr_to_paddr(convert_ref_type_to_usize(ptSlot)),
         )
+    }
+
+     ///用于记录某个虚拟地址`vptr`对应的pte表项在内存中的位置
+     pub fn lookup_pt_slot(&self, vptr: vptr_t) -> lookupPTSlot_ret_t {
+        todo!("lookupPTSlot")
+        // let mut level = 3;
+        // let mut pt = self as *const pte_t as usize as *mut pte_t;
+        // let mut ret = lookupPTSlot_ret_t {
+        //     ptBitsLeft: PT_INDEX_BITS * level + seL4_PageBits,
+        //     ptSlot: unsafe {
+        //         pt.add((vptr >> (PT_INDEX_BITS * level + seL4_PageBits)) & MASK!(PT_INDEX_BITS))
+        //     },
+        // };
+
+        // while unsafe { (*ret.ptSlot).is_pte_table() } && level > 0 {
+        //     level -= 1;
+        //     ret.ptBitsLeft -= PT_INDEX_BITS;
+        //     pt = unsafe { (*ret.ptSlot).get_pte_from_ppn_mut() as *mut pte_t };
+        //     ret.ptSlot = unsafe { pt.add((vptr >> ret.ptBitsLeft) & MASK!(PT_INDEX_BITS)) };
+        // }
+        // ret
     }
 }

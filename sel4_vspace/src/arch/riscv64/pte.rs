@@ -2,15 +2,14 @@ use bitflags::bitflags;
 use core::intrinsics::unlikely;
 
 use sel4_common::{
-    sel4_config::{seL4_PageBits, seL4_PageTableBits, CONFIG_PT_LEVELS},
+    sel4_config::{seL4_PageBits, seL4_PageTableBits, CONFIG_PT_LEVELS, PT_INDEX_BITS},
     structures::exception_t,
     utils::{convert_to_mut_type_ref, convert_to_type_ref},
-    BIT,
+    BIT, MASK,
 };
 
 use crate::{
-    arch::riscv64::{sfence, utils::RISCV_GET_PT_INDEX},
-    asid_t, find_vspace_for_asid, pte_t, vptr_t,
+    arch::riscv64::{sfence, utils::RISCV_GET_PT_INDEX}, asid_t, find_vspace_for_asid, lookupPTSlot_ret_t, pte_t, vptr_t
 };
 
 use super::{
@@ -160,5 +159,26 @@ impl pte_t {
     #[inline]
     pub fn get_read(&self) -> usize {
         (self.0 & 0x2usize) >> 1
+    }
+
+
+     ///用于记录某个虚拟地址`vptr`对应的pte表项在内存中的位置
+     pub fn lookup_pt_slot(&self, vptr: vptr_t) -> lookupPTSlot_ret_t {
+        let mut level = CONFIG_PT_LEVELS - 1;
+        let mut pt = self as *const pte_t as usize as *mut pte_t;
+        let mut ret = lookupPTSlot_ret_t {
+            ptBitsLeft: PT_INDEX_BITS * level + seL4_PageBits,
+            ptSlot: unsafe {
+                pt.add((vptr >> (PT_INDEX_BITS * level + seL4_PageBits)) & MASK!(PT_INDEX_BITS))
+            },
+        };
+
+        while unsafe { (*ret.ptSlot).is_pte_table() } && level > 0 {
+            level -= 1;
+            ret.ptBitsLeft -= PT_INDEX_BITS;
+            pt = unsafe { (*ret.ptSlot).get_pte_from_ppn_mut() as *mut pte_t };
+            ret.ptSlot = unsafe { pt.add((vptr >> ret.ptBitsLeft) & MASK!(PT_INDEX_BITS)) };
+        }
+        ret
     }
 }
