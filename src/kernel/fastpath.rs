@@ -122,7 +122,7 @@ pub fn fastpath_copy_mrs(length: usize, src: &mut tcb_t, dest: &mut tcb_t) {
 // #[inline]
 // #[no_mangle]
 // pub fn fastpath_restore(badge: usize, msgInfo: usize, cur_thread: *mut tcb_t) {
-//     let cur_thread_regs = unsafe { (*cur_thread).tcbArch.registers.as_ptr() as usize };
+//     let cur_thread_regs = unsafe { (*cur_thread).tcbArch.get_register().as_ptr() as usize };
 //     extern "C" {
 //         pub fn __restore_fp(badge: usize, msgInfo: usize, cur_thread_reg: usize);
 //         fn fastpath_restore(badge: usize, msgInfo: usize, cur_thread: usize);

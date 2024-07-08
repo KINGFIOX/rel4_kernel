@@ -7,8 +7,6 @@ use crate::{
     syscall::slowpath,
 };
 
-use sel4_task::*;
-
 use super::exception::{handleUserLevelFault, handleVMFaultEvent};
 use crate::interrupt::handler::handleInterruptEntry;
 
@@ -25,7 +23,7 @@ use sel4_common::utils::cpu_id;
 pub fn restore_user_context() {
     unsafe {
         // debug!("restore_user_context");
-        let _cur_thread_reg: usize = get_currenct_thread().tcbArch.registers.as_ptr() as usize;
+        // let _cur_thread_reg: usize = get_currenct_thread().tcbArch.get_register().as_ptr() as usize;
         #[cfg(feature = "ENABLE_SMP")]
         {
             if clh_is_self_in_queue() {
@@ -38,7 +36,7 @@ pub fn restore_user_context() {
                 out(reg) cur_sp,
             );
             // debug!("cur_sp: {:#x}", cur_sp);
-            *((cur_sp - 8) as *mut usize) = cur_thread_reg;
+            // *((cur_sp - 8) as *mut usize) = cur_thread_reg;
         }
         // debug!("restore_user_context3");
         unimplemented!("restore_user_context");

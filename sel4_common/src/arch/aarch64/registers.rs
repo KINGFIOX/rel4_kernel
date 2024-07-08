@@ -67,6 +67,13 @@ pub const fault_messages: [[usize; MAX_MSG_SIZE]; 2] = [
     [0, 1, 2, 3, 4, 5, 6, 7, 34, 31, 32, 33],
     [34, 31, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 ];
+pub const frameRegNum: usize = 17;
+pub const gpRegNum: usize = 19;
+pub const frameRegisters: [usize; frameRegNum] =
+    [34, 31, 33, 0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 17, 18, 29, 30];
+pub const gpRegisters: [usize; gpRegNum] = [
+    9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 35, 36,
+];
 
 impl ArchReg {
     /// Convert Enum to register index.

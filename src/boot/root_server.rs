@@ -1,7 +1,5 @@
 use super::calculate_extra_bi_size_bits;
-use super::utils::{
-    arch_get_n_paging, create_it_pt_cap, map_it_frame_cap, provide_cap, write_slot,
-};
+use super::utils::{arch_get_n_paging, map_it_frame_cap, provide_cap, write_slot};
 use super::{ndks_boot, utils::is_reg_empty};
 use crate::interrupt::{setIRQState, IRQState};
 use crate::structures::{
@@ -399,6 +397,8 @@ fn init_irqs(root_cnode_cap: &cap_t) {
 
 #[cfg(target_arch = "riscv64")]
 unsafe fn rust_create_it_address_space(root_cnode_cap: &cap_t, it_v_reg: v_region_t) -> cap_t {
+    use super::utils::create_it_pt_cap;
+
     copyGlobalMappings(rootserver.vspace);
     let lvl1pt_cap = cap_t::new_page_table_cap(IT_ASID, rootserver.vspace, 1, rootserver.vspace);
     let ptr = root_cnode_cap.get_cap_ptr() as *mut cte_t;

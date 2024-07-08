@@ -1,6 +1,8 @@
 use sel4_task::tcb_t;
 
 extern "C" {
+    #[cfg(target_arch = "aarch64")]
+    pub fn kernel_stack_alloc();
     pub fn init_plat();
     pub fn tcbDebugAppend(action: *mut tcb_t);
     pub fn tcbDebugRemove(tcb: *mut tcb_t);
