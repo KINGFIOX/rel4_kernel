@@ -4,20 +4,20 @@ use crate::syscall::get_currenct_thread;
 use crate::syscall::invocation::decode::current_syscall_error;
 use crate::syscall::invocation::invoke_mmu_op::invoke_page_table_unmap;
 use crate::syscall::ThreadState;
-use crate::syscall::{get_syscall_arg, set_thread_state, unlikely};
+use crate::syscall::{current_lookup_fault, get_syscall_arg, set_thread_state, unlikely};
 use log::debug;
 use sel4_common::sel4_config::seL4_InvalidArgument;
+use sel4_common::sel4_config::{asidInvalid, seL4_FailedLookup, seL4_RangeError};
 use sel4_common::sel4_config::{
     seL4_IllegalOperation, seL4_InvalidCapability, seL4_RevokeFirst, seL4_TruncatedMessage,
 };
+use sel4_common::utils::convert_to_mut_type_ref;
 use sel4_common::{
     arch::MessageLabel,
     structures::{exception_t, seL4_IPCBuffer},
 };
 use sel4_cspace::interface::{cap_t, cte_t, CapTag};
-
-use sel4_common::sel4_config::seL4_RangeError;
-use sel4_common::utils::convert_to_mut_type_ref;
+use sel4_vspace::{find_vspace_for_asid, pte_t};
 
 use crate::{
     config::maxIRQ,
@@ -156,6 +156,7 @@ fn decode_page_table_map(
         // }
         // set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
         // return invoke_page_table_map(cap, lu_slot, asid, vaddr & !MASK!(lu_ret.ptBitsLeft));
+        exception_t::EXCEPTION_NONE
     } else {
         return exception_t::EXCEPTION_SYSCALL_ERROR;
     }
