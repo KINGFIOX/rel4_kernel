@@ -8,10 +8,9 @@ use sel4_common::{
 use sel4_cspace::interface::{cte_t, CapTag};
 use sel4_task::{get_currenct_thread, set_thread_state, ThreadState};
 
-use super::arch::arch_irq_invocation::arch_decode_irq_control_invocation;
+use super::arch::{arch_decode_irq_control_invocation, check_irq};
 use crate::syscall::invocation::invoke_irq::{invoke_clear_irq_handler, invoke_set_irq_handler};
 use crate::{
-    config::{irqInvalid, maxIRQ},
     interrupt::is_irq_active,
     kernel::boot::{current_syscall_error, get_extra_cap_by_index},
     syscall::{get_syscall_arg, invocation::invoke_irq::invoke_irq_control, lookupSlotForCNodeOp},
@@ -112,20 +111,4 @@ pub fn decode_irq_handler_invocation(label: MessageLabel, irq: usize) -> excepti
             exception_t::EXCEPTION_SYSCALL_ERROR
         }
     };
-}
-
-pub(crate) fn check_irq(irq: usize) -> exception_t {
-    if irq > maxIRQ || irq == irqInvalid {
-        unsafe {
-            current_syscall_error._type = seL4_RangeError;
-            current_syscall_error.rangeErrorMin = 1;
-            current_syscall_error.rangeErrorMax = maxIRQ;
-            debug!(
-                "Rejecting request for IRQ {}. IRQ is out of range [1..maxIRQ].",
-                irq
-            );
-            return exception_t::EXCEPTION_SYSCALL_ERROR;
-        }
-    }
-    exception_t::EXCEPTION_NONE
 }

@@ -23,8 +23,7 @@ use crate::kernel::boot::current_syscall_error;
 use crate::syscall::invocation::decode::decode_irq_invocation::decode_irq_handler_invocation;
 
 use self::{
-    arch::decode_mmu_invocation::decode_mmu_invocation,
-    decode_cnode_invocation::decode_cnode_invocation,
+    arch::decode_mmu_invocation, decode_cnode_invocation::decode_cnode_invocation,
     decode_domain_invocation::decode_domain_invocation,
     decode_irq_invocation::decode_irq_control_invocation,
     decode_tcb_invocation::decode_tcb_invocation,

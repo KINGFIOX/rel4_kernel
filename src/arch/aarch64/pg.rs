@@ -1,4 +1,4 @@
-use crate::syscall::invocation::decode::arch::decode_mmu_invocation::decode_mmu_invocation;
+use crate::syscall::invocation::decode::arch::decode_mmu_invocation;
 use sel4_common::arch::MessageLabel;
 use sel4_common::structures::exception_t;
 use sel4_common::structures::seL4_IPCBuffer;
