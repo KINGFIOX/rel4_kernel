@@ -4,9 +4,11 @@
 mod arch_tcb;
 mod message_info;
 mod registers;
+mod vm_rights;
 pub use arch_tcb::ArchTCB;
 pub use message_info::*;
 pub use registers::*;
+pub use vm_rights::*;
 use riscv::register::time;
 
 const SBI_SET_TIMER: usize = 0;

@@ -1,9 +1,6 @@
-use sel4_common::{plus_define_bitfield, structures::exception_t};
+use sel4_common::{cap_rights::seL4_CapRights_t, plus_define_bitfield, structures::exception_t};
 
-use crate::{
-    cte::deriveCap_ret,
-    interface::{cte_t, seL4_CapRights_t},
-};
+use crate::cte::{deriveCap_ret,cte_t};
 
 /// Cap 在内核态中的种类枚举
 #[derive(Eq, PartialEq, Debug)]

@@ -11,7 +11,7 @@ use sel4_common::{
     BIT,
 };
 
-use crate::{pte_t, vm_rights_t};
+use crate::pte_t;
 
 /// 在`PSpace`段的虚拟地址空间中的指针
 ///
@@ -134,11 +134,5 @@ impl Debug for paddr_t {
 impl Display for paddr_t {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_fmt(format_args!("{:#x}", self.0))
-    }
-}
-
-pub fn vm_rights_from_word(w:usize)->vm_rights_t{
-    unsafe{
-        core::mem::transmute(w)
     }
 }

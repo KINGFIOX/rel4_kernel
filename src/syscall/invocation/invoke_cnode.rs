@@ -1,12 +1,11 @@
 use log::debug;
 use sel4_common::{
+    cap_rights::seL4_CapRights_t,
     sel4_config::{seL4_DeleteFirst, seL4_IllegalOperation, tcbCaller},
     structures::exception_t,
     utils::convert_to_mut_type_ref,
 };
-use sel4_cspace::interface::{
-    cap_t, cte_insert, cte_move, cte_swap, cte_t, seL4_CapRights_t, CapTag,
-};
+use sel4_cspace::interface::{cap_t, cte_insert, cte_move, cte_swap, cte_t, CapTag};
 use sel4_ipc::endpoint_t;
 use sel4_task::{get_currenct_thread, set_thread_state, ThreadState};
 

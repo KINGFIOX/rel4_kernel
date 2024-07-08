@@ -1,5 +1,5 @@
 use core::intrinsics::{likely, unlikely};
-use sel4_common::arch::{msgRegisterNum, n_exceptionMessage, n_syscallMessage, ArchReg, ArchTCB};
+use sel4_common::arch::{msgRegisterNum, n_exceptionMessage, n_syscallMessage, vm_rights_t, ArchReg, ArchTCB};
 use sel4_common::fault::*;
 use sel4_common::message_info::seL4_MessageInfo_t;
 use sel4_common::utils::{convert_to_mut_type_ref, pageBitsForSize};
@@ -7,7 +7,7 @@ use sel4_common::utils::{convert_to_mut_type_ref, pageBitsForSize};
 use sel4_common::BIT;
 use sel4_common::MASK;
 use sel4_cspace::interface::{cap_t, cte_insert, cte_t, mdb_node_t, resolve_address_bits, CapTag};
-use sel4_vspace::{pptr_t, set_vm_root, vm_rights_t};
+use sel4_vspace::{pptr_t, set_vm_root};
 
 use crate::tcb_queue::tcb_queue_t;
 use sel4_common::sel4_config::*;

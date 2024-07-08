@@ -8,7 +8,7 @@ use crate::structures::{
 };
 use crate::{BIT, ROUND_DOWN};
 use log::debug;
-use sel4_common::arch::{ArchReg, ArchTCB};
+use sel4_common::arch::{vm_rights_t, ArchReg, ArchTCB};
 use sel4_common::sel4_config::{
     asidLowBits, seL4_PageBits, seL4_PageTableBits, seL4_SlotBits, seL4_TCBBits, tcbBuffer,
     tcbCTable, tcbVTable, wordBits, CONFIG_MAX_NUM_NODES, CONFIG_NUM_DOMAINS, CONFIG_PT_LEVELS,

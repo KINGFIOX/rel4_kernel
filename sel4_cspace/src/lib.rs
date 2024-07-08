@@ -12,7 +12,6 @@
 
 mod arch;
 mod cap;
-mod cap_rights;
 mod cte;
 mod mdb;
 mod structures;

@@ -2,6 +2,8 @@
 mod arch_tcb;
 mod message_info;
 mod registers;
+mod vm_rights;
+pub use vm_rights::*;
 pub use arch_tcb::ArchTCB;
 pub use message_info::*;
 pub use registers::*;

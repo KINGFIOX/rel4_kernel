@@ -2,13 +2,14 @@ use crate::ffi::tcbDebugAppend;
 use crate::syscall::{
     FREE_INDEX_TO_OFFSET, GET_FREE_INDEX, GET_OFFSET_FREE_PTR, OFFSET_TO_FREE_IDNEX,
 };
+use sel4_common::arch::vm_rights_t;
 use sel4_common::{
     object::ObjectType, sel4_config::*, structures::exception_t, utils::convert_to_mut_type_ref,
     BIT, ROUND_DOWN,
 };
 use sel4_cspace::interface::{cap_t, cte_t, insert_new_cap};
 use sel4_task::{get_current_domain, tcb_t};
-use sel4_vspace::{pptr_t, vm_rights_t};
+use sel4_vspace::{pptr_t};
 
 use crate::utils::*;
 

@@ -17,3 +17,5 @@ pub mod sel4_config;
 pub mod smp;
 pub mod structures;
 pub mod utils;
+pub mod cap_rights;
+pub mod vm_rights;
