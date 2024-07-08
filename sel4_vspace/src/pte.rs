@@ -5,8 +5,6 @@
 #[derive(Copy, Clone)]
 pub struct pte_t(pub usize);
 
-
-
 impl pte_t {
     #[inline]
     pub fn get_ptr(&self) -> usize {

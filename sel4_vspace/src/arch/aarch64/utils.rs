@@ -1,13 +1,29 @@
-use sel4_common::{
-    sel4_config::{
-        seL4_PageBits, CONFIG_PT_LEVELS, KERNEL_ELF_BASE_OFFSET, PPTR_BASE_OFFSET, PT_INDEX_BITS,
-    },
-    MASK,
-};
+use sel4_common::{sel4_config::*, MASK};
 
 use crate::pte_t;
 pub const KPT_LEVELS: usize = 4;
 pub const seL4_VSpaceIndexBits: usize = 9;
+#[inline]
+pub fn GET_PT_INDEX(addr: usize) -> usize {
+    (addr >> PT_INDEX_OFFSET) & MASK!(PT_INDEX_BITS)
+}
+#[inline]
+pub fn GET_PD_INDEX(addr: usize) -> usize {
+    (addr >> PD_INDEX_OFFSET) & MASK!(PD_INDEX_BITS)
+}
+#[inline]
+pub fn GET_UPUD_INDEX(addr: usize) -> usize {
+    (addr >> PUD_INDEX_OFFSET) & MASK!(UPUD_INDEX_BITS)
+}
+#[inline]
+pub fn GET_PUD_INDEX(addr: usize) -> usize {
+    (addr >> PUD_INDEX_OFFSET) & MASK!(PUD_INDEX_BITS)
+}
+#[inline]
+pub fn GET_PGD_INDEX(addr: usize) -> usize {
+    (addr >> PGD_INDEX_OFFSET) & MASK!(PGD_INDEX_BITS)
+}
+
 #[inline]
 pub fn GET_KPT_INDEX(addr: usize, n: usize) -> usize {
     ((addr) >> (((PT_INDEX_BITS) * (((KPT_LEVELS) - 1) - (n))) + seL4_PageBits))

@@ -105,9 +105,10 @@ fn decode_page_table_unmap(pt_cte: &mut cte_t) -> exception_t {
         }
         return exception_t::EXCEPTION_SYSCALL_ERROR;
     }
-    set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
     let cap = &mut pt_cte.cap;
     // todo: in riscv here exists some more code ,but I don't know what it means and cannot find it in sel4,need check
+    set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
+
     return invoke_page_table_unmap(cap);
 }
 fn decode_page_table_map(
@@ -131,10 +132,8 @@ fn decode_page_table_map(
         }
         return exception_t::EXCEPTION_SYSCALL_ERROR;
     }
+
     let vaddr = get_syscall_arg(0, buffer);
-
-    let lvl1pt_cap = get_extra_cap_by_index(0).unwrap().cap;
-
     if unlikely(vaddr >= USER_TOP) {
         debug!("ARMPageTableMap: Virtual address cannot be in kernel window.");
         unsafe {
@@ -143,10 +142,62 @@ fn decode_page_table_map(
         }
         return exception_t::EXCEPTION_SYSCALL_ERROR;
     }
+    let lvl1pt_cap = get_extra_cap_by_index(0).unwrap().cap;
 
-    // return invoke_page_table_map(cap,lu_slot,asid,vaddr & !MASK!(lu_ret.ptBitsLeft));
-    exception_t::EXCEPTION_NONE
+    if let Some((lvl1pt, asid)) = get_vspace(&lvl1pt_cap) {
+        // let lu_ret = lvl1pt.lookup_pt_slot(vaddr);
+        // let lu_slot = convert_to_mut_type_ref::<pte_t>(lu_ret.ptSlot as usize);
+        // if lu_ret.ptBitsLeft == seL4_PageBits || lu_slot.get_valid() != 0 {
+        //     debug!("ARMPageTableMap: All objects mapped at this address");
+        //     unsafe {
+        //         current_syscall_error._type = seL4_DeleteFirst;
+        //     }
+        //     return exception_t::EXCEPTION_SYSCALL_ERROR;
+        // }
+        // set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
+        // return invoke_page_table_map(cap, lu_slot, asid, vaddr & !MASK!(lu_ret.ptBitsLeft));
+    } else {
+        return exception_t::EXCEPTION_SYSCALL_ERROR;
+    }
 }
+
+fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut pte_t, usize)> {
+    if lvl1pt_cap.get_cap_type() != CapTag::CapPageTableCap
+        || lvl1pt_cap.get_pt_is_mapped() == asidInvalid
+    {
+        debug!("ARMMMUInvocation: Invalid top-level PageTable.");
+        unsafe {
+            current_syscall_error._type = seL4_InvalidCapability;
+            current_syscall_error.invalidCapNumber = 1;
+        }
+        return None;
+    }
+
+    let lvl1pt = convert_to_mut_type_ref::<pte_t>(lvl1pt_cap.get_pt_base_ptr());
+    let asid = lvl1pt_cap.get_pt_mapped_asid();
+
+    let find_ret = find_vspace_for_asid(asid);
+    if find_ret.status != exception_t::EXCEPTION_NONE {
+        debug!("ARMMMUInvocation: ASID lookup failed");
+        unsafe {
+            current_lookup_fault = find_ret.lookup_fault.unwrap();
+            current_syscall_error._type = seL4_FailedLookup;
+            current_syscall_error.failedLookupWasSource = 0;
+        }
+        return None;
+    }
+
+    if find_ret.vspace_root.unwrap() as usize != lvl1pt.get_ptr() {
+        debug!("ARMMMUInvocation: ASID lookup failed");
+        unsafe {
+            current_syscall_error._type = seL4_InvalidCapability;
+            current_syscall_error.invalidCapNumber = 1;
+        }
+        return None;
+    }
+    Some((lvl1pt, asid))
+}
+
 fn decode_vspace_root_invocation(
     label: MessageLabel,
     length: usize,

@@ -9,7 +9,8 @@ use sel4_common::{
 };
 
 use crate::{
-    arch::riscv64::{sfence, utils::RISCV_GET_PT_INDEX}, asid_t, find_vspace_for_asid, lookupPTSlot_ret_t, pte_t, vptr_t
+    arch::riscv64::{sfence, utils::RISCV_GET_PT_INDEX},
+    asid_t, find_vspace_for_asid, lookupPTSlot_ret_t, pte_t, vptr_t,
 };
 
 use super::{
@@ -161,9 +162,8 @@ impl pte_t {
         (self.0 & 0x2usize) >> 1
     }
 
-
-     ///用于记录某个虚拟地址`vptr`对应的pte表项在内存中的位置
-     pub fn lookup_pt_slot(&self, vptr: vptr_t) -> lookupPTSlot_ret_t {
+    ///用于记录某个虚拟地址`vptr`对应的pte表项在内存中的位置
+    pub fn lookup_pt_slot(&self, vptr: vptr_t) -> lookupPTSlot_ret_t {
         let mut level = CONFIG_PT_LEVELS - 1;
         let mut pt = self as *const pte_t as usize as *mut pte_t;
         let mut ret = lookupPTSlot_ret_t {

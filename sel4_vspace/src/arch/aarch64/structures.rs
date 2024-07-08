@@ -28,3 +28,21 @@ pub struct lookupPTSlot_ret_t {
     pub status: exception_t,
     pub ptSlot: *mut pte_t,
 }
+
+#[repr(C)]
+pub struct lookupPGDSlot_ret_t {
+    pub status: exception_t,
+    pub pgdSlot: *mut pte_t, // *mut pgde_t
+}
+
+#[repr(C)]
+pub struct lookupPDSlot_ret_t {
+    pub status: exception_t,
+    pub pdSlot: *mut pte_t, // *mut pde_t
+}
+
+#[repr(C)]
+pub struct lookupPUDSlot_ret_t {
+    pub status: exception_t,
+    pub pudSlot: *mut pte_t, // *mut pude_t
+}
