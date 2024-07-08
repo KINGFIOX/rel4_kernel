@@ -1,4 +1,4 @@
-use super::ndks_boot;
+use super::{ndks_boot, PAGE_SIZE_BITS};
 use crate::config::CONFIG_ROOT_CNODE_SIZE_BITS;
 use crate::structures::{p_region_t, region_t, v_region_t};
 use crate::{BIT, ROUND_DOWN, ROUND_UP};
@@ -55,7 +55,9 @@ pub fn arch_get_n_paging(it_v_reg: v_region_t) -> usize {
         n += get_n_paging(it_v_reg, RISCV_GET_LVL_PGSIZE_BITS(i));
     }
     #[cfg(target_arch = "aarch64")]
-    todo!();
+    // PGD_INDEX_OFFSET + PD_INDEX_OFFSET
+    n = get_n_paging(it_v_reg, PT_INDEX_BITS + PAGE_SIZE_BITS + PT_INDEX_BITS)
+        + get_n_paging(it_v_reg, PT_INDEX_BITS + PAGE_SIZE_BITS);
     return n;
 }
 

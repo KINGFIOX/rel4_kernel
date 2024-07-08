@@ -11,8 +11,8 @@ use log::debug;
 use sel4_common::arch::{vm_rights_t, ArchReg, ArchTCB};
 use sel4_common::sel4_config::{
     asidLowBits, seL4_PageBits, seL4_PageTableBits, seL4_SlotBits, seL4_TCBBits, tcbBuffer,
-    tcbCTable, tcbVTable, wordBits, CONFIG_MAX_NUM_NODES, CONFIG_NUM_DOMAINS, CONFIG_PT_LEVELS,
-    CONFIG_TIME_SLICE, IT_ASID, PAGE_BITS, TCB_OFFSET,
+    tcbCTable, tcbVTable, wordBits, CONFIG_MAX_NUM_NODES, CONFIG_NUM_DOMAINS,
+    CONFIG_TIME_SLICE, IT_ASID, PAGE_BITS, TCB_OFFSET, PT_INDEX_BITS,
 };
 use sel4_common::structures::{exception_t, seL4_IPCBuffer};
 use sel4_common::utils::convert_to_mut_type_ref;
@@ -425,9 +425,77 @@ unsafe fn rust_create_it_address_space(root_cnode_cap: &cap_t, it_v_reg: v_regio
     };
     lvl1pt_cap
 }
+
 #[cfg(target_arch = "aarch64")]
 unsafe fn rust_create_it_address_space(root_cnode_cap: &cap_t, it_v_reg: v_region_t) -> cap_t {
-    todo!();
+    use super::utils::create_it_pt_cap;
+
+    // create the PGD
+    let vspace_cap = cap_t::new_page_global_directory_cap(IT_ASID, rootserver.vspace, 1);
+    let ptr = root_cnode_cap.get_cap_ptr() as *mut cte_t;
+    let slot_pos_before = ndks_boot.slot_pos_cur;
+    write_slot(ptr.add(seL4_CapInitThreadVspace), vspace_cap.clone());
+
+    // Create any PUDs needed for the user land image, should config `PGD_INDEX_OFFSET`, `PUD_INDEX_OFFSET`...
+    let PGD_INDEX_OFFSET = PAGE_BITS + PT_INDEX_BITS * 3;
+    let PUD_INDEX_OFFSET = PAGE_BITS + PT_INDEX_BITS * 2;
+    let PD_INDEX_OFFSET = PAGE_BITS + PT_INDEX_BITS;
+    let mut vptr = ROUND_DOWN!(it_v_reg.start, PGD_INDEX_OFFSET);
+    while vptr < it_v_reg.end {
+        if !provide_cap(
+            root_cnode_cap,
+            create_it_pt_cap(&vspace_cap, it_alloc_paging(), vptr, IT_ASID),
+        ) {
+            return cap_t::new_null_cap();
+        }
+        vptr += BIT!(PGD_INDEX_OFFSET);
+    }
+
+    // Create any PDs needed for the user land image
+    vptr = ROUND_DOWN!(it_v_reg.start, PUD_INDEX_OFFSET);
+    while vptr < it_v_reg.end {
+        if !provide_cap(
+            root_cnode_cap,
+            create_it_pt_cap(&vspace_cap, it_alloc_paging(), vptr, IT_ASID),
+        ) {
+            return cap_t::new_null_cap();
+        }
+        vptr += BIT!(PUD_INDEX_OFFSET);
+    }
+
+    // Create any PTs needed for the user land image
+    vptr = ROUND_DOWN!(it_v_reg.start, PD_INDEX_OFFSET);
+    while vptr < it_v_reg.end {
+        if !provide_cap(
+            root_cnode_cap,
+            create_it_pt_cap(&vspace_cap, it_alloc_paging(), vptr, IT_ASID),
+        ) {
+            return cap_t::new_null_cap();
+        }
+        vptr += BIT!(PD_INDEX_OFFSET);
+    }
+
+
+    let mut i = 0;
+    while i < 4 - 1 {
+        let mut pt_vptr = ROUND_DOWN!(it_v_reg.start, PAGE_BITS);
+        while pt_vptr < it_v_reg.end {
+            if !provide_cap(
+                root_cnode_cap,
+                create_it_pt_cap(&vspace_cap, it_alloc_paging(), pt_vptr, IT_ASID),
+            ) {
+                return cap_t::new_null_cap();
+            }
+            pt_vptr += BIT!(PAGE_BITS);
+        }
+        i += 1;
+    }
+    let slot_pos_after = ndks_boot.slot_pos_cur;
+    (*ndks_boot.bi_frame).userImagePaging = seL4_SlotRegion {
+        start: slot_pos_before,
+        end: slot_pos_after,
+    };
+    vspace_cap
 }
 
 fn init_bi_frame_cap(

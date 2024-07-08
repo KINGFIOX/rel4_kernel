@@ -11,6 +11,7 @@
 #![feature(alloc_error_handler)]
 #![feature(panic_info_message)]
 #![feature(linkage)]
+#![feature(stmt_expr_attributes)]
 
 extern crate core;
 use sel4_common::arch::shutdown;
