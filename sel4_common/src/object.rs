@@ -3,23 +3,15 @@
 //! It provides methods to retrieve the size of an object, the frame type of an object,
 //! convert a usize value to an `ObjectType`, and check if an object type is architecture-specific.
 
+use crate::arch::ObjectType;
+
 use super::sel4_config::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-/// Represents the type of an object.
-pub enum ObjectType {
-    UnytpedObject = 0,
-    TCBObject = 1,
-    EndpointObject = 2,
-    NotificationObject = 3,
-    CapTableObject = 4,
-    GigaPageObject = 5,
-    NormalPageObject = 6,
-    MegaPageObject = 7,
-    PageTableObject = 8,
-}
-
+#[cfg(target_arch = "riscv64")]
 pub const seL4_ObjectTypeCount: usize = ObjectType::PageTableObject as usize + 1;
+#[cfg(target_arch = "aarch64")]
+pub const seL4_ObjectTypeCount: usize = ObjectType::seL4_ARM_PageDirectoryObject as usize;
+pub const seL4_NonArchObjectTypeCount: usize = ObjectType::CapTableObject as usize + 1;
 
 impl ObjectType {
     /// Returns the size of the object based on its type.
@@ -32,16 +24,16 @@ impl ObjectType {
     ///
     /// The size of the object.
     pub fn get_object_size(&self, user_object_size: usize) -> usize {
+        if (*self) as usize >= seL4_NonArchObjectTypeCount {
+            return self.arch_get_object_size();
+        }
         match self {
             ObjectType::UnytpedObject => user_object_size,
             ObjectType::TCBObject => seL4_TCBBits,
             ObjectType::EndpointObject => seL4_EndpointBits,
             ObjectType::NotificationObject => seL4_NotificationBits,
             ObjectType::CapTableObject => seL4_SlotBits + user_object_size,
-            ObjectType::GigaPageObject => seL4_HugePageBits,
-            ObjectType::NormalPageObject => seL4_PageBits,
-            ObjectType::MegaPageObject => seL4_LargePageBits,
-            ObjectType::PageTableObject => seL4_PageBits,
+            _ => panic!("unsupported cap type:{}", (*self) as usize),
         }
     }
 

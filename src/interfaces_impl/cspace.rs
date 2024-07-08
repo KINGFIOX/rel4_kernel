@@ -201,7 +201,7 @@ pub fn preemptionPoint() -> exception_t {
 }
 
 #[no_mangle]
-fn deleteASID(asid: asid_t, vspace: *mut pte_t) {
+pub fn deleteASID(asid: asid_t, vspace: *mut pte_t) {
     unsafe {
         if let Err(lookup_fault) = delete_asid(
             asid,
@@ -214,7 +214,7 @@ fn deleteASID(asid: asid_t, vspace: *mut pte_t) {
 }
 
 #[no_mangle]
-fn deleteASIDPool(asid_base: asid_t, pool: *mut asid_pool_t) {
+pub fn deleteASIDPool(asid_base: asid_t, pool: *mut asid_pool_t) {
     unsafe {
         if let Err(lookup_fault) = delete_asid_pool(
             asid_base,

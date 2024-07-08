@@ -1,9 +1,8 @@
 use sel4_common::{
-    arch::maskVMRights, cap_rights::seL4_CapRights_t, plus_define_bitfield,
-    structures::exception_t, vm_rights::vm_rights_from_word,
+    arch::maskVMRights, cap_rights::seL4_CapRights_t, plus_define_bitfield, structures::exception_t, utils::pageBitsForSize, vm_rights::vm_rights_from_word, MASK
 };
 
-use crate::{cte::deriveCap_ret, interface::cte_t};
+use crate::{cap::same_region_as, cte::deriveCap_ret, interface::cte_t};
 // cap_t 表示一个capability，由两个机器字组成，包含了类型、对象元数据以及指向内核对象的指针。
 // 每个类型的capability的每个字段都实现了get和set方法。
 plus_define_bitfield! {
@@ -137,4 +136,42 @@ pub fn arch_mask_cap_rights(rights: seL4_CapRights_t, cap: &cap_t) -> cap_t {
     } else {
         cap.clone()
     }
+}
+
+pub fn arch_same_object_as(cap1: &cap_t, cap2: &cap_t) -> bool {
+    if cap1.get_cap_type() == CapTag::CapFrameCap && cap2.get_cap_type() == CapTag::CapFrameCap {
+        return cap1.get_frame_base_ptr() == cap2.get_frame_base_ptr()
+            && cap1.get_frame_size() == cap2.get_frame_size()
+            && (cap1.get_frame_is_device() == 0) == (cap2.get_frame_is_device() == 0);
+    }
+    arch_same_region_as(cap1, cap2)
+}
+
+pub fn arch_same_region_as(cap1: &cap_t, cap2: &cap_t) -> bool {
+    match cap1.get_cap_type() {
+        CapTag::CapFrameCap => {
+            if cap2.get_cap_type() == CapTag::CapFrameCap {
+                let botA = cap1.get_frame_base_ptr();
+                let botB = cap2.get_frame_base_ptr();
+                let topA = botA + MASK!(pageBitsForSize(cap1.get_frame_size()));
+                let topB = botB + MASK!(pageBitsForSize(cap2.get_frame_size()));
+                return (botA <= botB) && (topA >= topB) && (botB <= topB);
+            }
+        }
+        CapTag::CapPageTableCap => {
+            if cap2.get_cap_type() == CapTag::CapPageTableCap {
+                return cap1.get_pt_base_ptr() == cap2.get_pt_base_ptr();
+            }
+        }
+        CapTag::CapASIDControlCap => {
+            return cap2.get_cap_type() == CapTag::CapASIDControlCap;
+        }
+        CapTag::CapASIDPoolCap => {
+            if cap2.get_cap_type() == CapTag::CapASIDPoolCap {
+                return cap1.get_asid_pool() == cap2.get_asid_pool();
+            }
+        }
+        _ => panic!("unknown cap"),
+    }
+    false
 }

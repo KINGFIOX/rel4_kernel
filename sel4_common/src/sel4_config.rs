@@ -34,6 +34,9 @@ pub const PT_INDEX_BITS: usize = 9;
 pub const CONFIG_PT_LEVELS: usize = 3;
 pub const seL4_PageBits: usize = 12;
 pub const seL4_PageTableBits: usize = 12;
+pub const seL4_PageDirBits: usize = 12;
+pub const seL4_PUDBits: usize = 12;
+pub const seL4_PGDBits: usize = 12;
 pub const seL4_HugePageBits: usize = 30;
 pub const seL4_LargePageBits: usize = 21;
 
@@ -64,7 +67,10 @@ pub const NUM_READY_QUEUES: usize = CONFIG_NUM_DOMAINS * CONFIG_NUM_PRIORITIES;
 pub const CONFIG_TIME_SLICE: usize = 5;
 
 // TCB relevant
+#[cfg(target_arch = "riscv64")]
 pub const seL4_TCBBits: usize = 10;
+#[cfg(target_arch = "aarch64")]
+pub const seL4_TCBBits: usize = 11;
 pub const TCB_SIZE_BITS: usize = seL4_TCBBits - 1;
 pub const TCB_OFFSET: usize = BIT!(TCB_SIZE_BITS);
 pub const tcbCTable: usize = 0;

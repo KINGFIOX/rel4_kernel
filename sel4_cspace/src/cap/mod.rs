@@ -2,7 +2,7 @@ pub mod zombie;
 
 use sel4_common::{sel4_config::*, utils::pageBitsForSize, MASK};
 
-use crate::{arch::cap_t, arch::CapTag};
+use crate::arch::{arch_same_object_as, cap_t, CapTag};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -186,16 +186,7 @@ pub fn same_region_as(cap1: &cap_t, cap2: &cap_t) -> bool {
 
             return false;
         }
-        CapTag::CapFrameCap => {
-            if cap2.get_cap_type() == CapTag::CapFrameCap {
-                let botA = cap1.get_frame_base_ptr();
-                let botB = cap2.get_frame_base_ptr();
-                let topA = botA + MASK!(pageBitsForSize(cap1.get_frame_size()));
-                let topB = botB + MASK!(pageBitsForSize(cap2.get_frame_size()));
-                return (botA <= botB) && (topA >= topB) && (botB <= topB);
-            }
-            false
-        }
+        
         CapTag::CapEndpointCap
         | CapTag::CapNotificationCap
         | CapTag::CapPageTableCap
@@ -247,15 +238,6 @@ pub fn same_object_as(cap1: &cap_t, cap2: &cap_t) -> bool {
     }
     if cap1.isArchCap() && cap2.isArchCap() {
         return arch_same_object_as(cap1, cap2);
-    }
-    same_region_as(cap1, cap2)
-}
-
-fn arch_same_object_as(cap1: &cap_t, cap2: &cap_t) -> bool {
-    if cap1.get_cap_type() == CapTag::CapFrameCap && cap2.get_cap_type() == CapTag::CapFrameCap {
-        return cap1.get_frame_base_ptr() == cap2.get_frame_base_ptr()
-            && cap1.get_frame_size() == cap2.get_frame_size()
-            && (cap1.get_frame_is_device() == 0) == (cap2.get_frame_is_device() == 0);
     }
     same_region_as(cap1, cap2)
 }
