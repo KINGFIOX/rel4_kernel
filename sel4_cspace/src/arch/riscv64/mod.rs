@@ -1,4 +1,7 @@
-use sel4_common::{plus_define_bitfield, structures::exception_t};
+use sel4_common::{
+    arch::maskVMRights, cap_rights::seL4_CapRights_t, plus_define_bitfield,
+    structures::exception_t, vm_rights::vm_rights_from_word,
+};
 
 use crate::{cte::deriveCap_ret, interface::cte_t};
 // cap_t 表示一个capability，由两个机器字组成，包含了类型、对象元数据以及指向内核对象的指针。
@@ -91,7 +94,7 @@ pub enum CapTag {
     CapASIDPoolCap = 13,
 }
 
-impl cte_t{
+impl cte_t {
     pub fn arch_derive_cap(&mut self, cap: &cap_t) -> deriveCap_ret {
         let mut ret = deriveCap_ret {
             status: exception_t::EXCEPTION_NONE,
@@ -121,5 +124,17 @@ impl cte_t{
             }
         }
         ret
+    }
+}
+
+pub fn arch_mask_cap_rights(rights: seL4_CapRights_t, cap: &cap_t) -> cap_t {
+    if cap.get_cap_type() == CapTag::CapFrameCap {
+        let mut vm_rights = vm_rights_from_word(cap.get_frame_vm_rights());
+        vm_rights = maskVMRights(vm_rights, rights);
+        let mut new_cap = cap.clone();
+        new_cap.set_frame_vm_rights(vm_rights as usize);
+        return new_cap;
+    } else {
+        cap.clone()
     }
 }

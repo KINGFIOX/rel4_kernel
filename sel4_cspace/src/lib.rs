@@ -10,7 +10,6 @@
 // #[macro_use]
 // extern crate std;
 
-mod arch;
 mod cap;
 mod cte;
 mod mdb;
@@ -23,6 +22,8 @@ pub mod interface;
 
 /// 兼容c风格的接口，后续会删除
 pub mod compatibility;
+
+pub mod arch;
 
 
 
