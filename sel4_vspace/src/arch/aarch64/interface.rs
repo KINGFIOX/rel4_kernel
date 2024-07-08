@@ -4,16 +4,12 @@ use super::{
     machine::*,
     pte::{self, PTEFlags},
 };
-use crate::{asid_t, find_vspace_for_asid, maskVMRights, pptr_t, pptr_to_paddr, pte_t, vptr_t};
+use crate::{asid_t, find_vspace_for_asid, pptr_t, pptr_to_paddr, pte_t, vptr_t};
 use sel4_common::{
-    fault::lookup_fault_t,
-    sel4_config::{
+    arch::{maskVMRights, vm_rights_t}, fault::lookup_fault_t, sel4_config::{
         asidInvalid, seL4_LargePageBits, ARM_Large_Page, ARM_Small_Page, PADDR_BASE, PADDR_TOP,
         PPTR_BASE, PPTR_TOP, PT_INDEX_BITS,
-    },
-    structures::exception_t,
-    utils::convert_to_mut_type_ref,
-    BIT,
+    }, structures::exception_t, utils::convert_to_mut_type_ref, BIT
 };
 use sel4_cspace::interface::{cap_t, CapTag};
 
@@ -145,7 +141,7 @@ pub fn create_it_frame_cap(pptr: pptr_t, vptr: vptr_t, asid: asid_t, use_large: 
     }
     cap_t::new_frame_cap(
         0,
-        super::vm_rights_t::VMReadWrite as usize,
+        vm_rights_t::VMReadWrite as usize,
         vptr,
         frame_size,
         asid,

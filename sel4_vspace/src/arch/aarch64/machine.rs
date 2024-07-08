@@ -87,6 +87,10 @@ pub fn cleanCacheRange_PoC(start:usize,end:usize,pstart: usize){
     
 }
 
+pub fn plat_cleanL2Range(pstart: usize, pend: usize) {
+    
+}
+
 fn LOC(x: usize) -> usize {
     (x >> 24) & MASK!(3)
 }
