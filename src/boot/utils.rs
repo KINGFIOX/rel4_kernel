@@ -56,8 +56,10 @@ pub fn arch_get_n_paging(it_v_reg: v_region_t) -> usize {
     }
     #[cfg(target_arch = "aarch64")]
     // PGD_INDEX_OFFSET + PD_INDEX_OFFSET
-    n = get_n_paging(it_v_reg, PT_INDEX_BITS + PAGE_SIZE_BITS + PT_INDEX_BITS)
-        + get_n_paging(it_v_reg, PT_INDEX_BITS + PAGE_SIZE_BITS);
+    {
+        n = get_n_paging(it_v_reg, PT_INDEX_BITS + PAGE_SIZE_BITS + PT_INDEX_BITS)
+            + get_n_paging(it_v_reg, PT_INDEX_BITS + PAGE_SIZE_BITS);
+    }
     return n;
 }
 

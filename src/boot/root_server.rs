@@ -12,7 +12,7 @@ use sel4_common::arch::{vm_rights_t, ArchReg, ArchTCB};
 use sel4_common::sel4_config::{
     asidLowBits, seL4_PageBits, seL4_PageTableBits, seL4_SlotBits, seL4_TCBBits, tcbBuffer,
     tcbCTable, tcbVTable, wordBits, CONFIG_MAX_NUM_NODES, CONFIG_NUM_DOMAINS,
-    CONFIG_TIME_SLICE, IT_ASID, PAGE_BITS, TCB_OFFSET, PT_INDEX_BITS,
+    CONFIG_TIME_SLICE, IT_ASID, PAGE_BITS, TCB_OFFSET, PT_INDEX_BITS, CONFIG_PT_LEVELS,
 };
 use sel4_common::structures::{exception_t, seL4_IPCBuffer};
 use sel4_common::utils::convert_to_mut_type_ref;
