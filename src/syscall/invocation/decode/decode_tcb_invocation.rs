@@ -4,8 +4,8 @@
 }, BIT};*/
 
 use log::debug;
+use sel4_common::arch::MessageLabel;
 use sel4_common::arch::{frameRegNum, gpRegNum};
-use sel4_common::message_info::MessageLabel;
 use sel4_common::sel4_config::{
     seL4_IllegalOperation, seL4_InvalidCapability, seL4_RangeError, seL4_TruncatedMessage,
     tcbCTable, tcbVTable,

@@ -6,6 +6,7 @@ use sel4_common::{
 use sel4_task::create_idle_thread;
 use sel4_vspace::{kpptr_to_paddr, rust_map_kernel_window};
 
+use crate::arch::aarch64::platform::{cleanInvalidateL1Caches, invalidateLocalTLB};
 use crate::{
     arch::{init_cpu, init_freemem},
     boot::{
@@ -93,6 +94,7 @@ pub fn try_init_kernel(
         v_entry,
     ) {
         create_idle_thread();
+        cleanInvalidateL1Caches();
         init_core_state(initial_thread);
         if !create_untypeds(&root_cnode_cap, boot_mem_reuse_reg) {
             debug!("ERROR: could not create untypteds for kernel image boot memory");
@@ -102,6 +104,8 @@ pub fn try_init_kernel(
 
             bi_finalise(dtb_size, dtb_phys_addr, extra_bi_size);
         }
+        cleanInvalidateL1Caches();
+        invalidateLocalTLB();
         // debug!("release_secondary_cores start");
         *ksNumCPUs.lock() = 1;
         #[cfg(feature = "ENABLE_SMP")]
