@@ -1,6 +1,6 @@
 pub mod zombie;
 
-use sel4_common::{sel4_config::*, utils::pageBitsForSize, MASK};
+use sel4_common::{sel4_config::*, MASK};
 
 use crate::arch::{arch_same_object_as, cap_t, CapTag};
 
@@ -186,7 +186,7 @@ pub fn same_region_as(cap1: &cap_t, cap2: &cap_t) -> bool {
 
             return false;
         }
-        
+
         CapTag::CapEndpointCap
         | CapTag::CapNotificationCap
         | CapTag::CapPageTableCap

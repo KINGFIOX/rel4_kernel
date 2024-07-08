@@ -77,3 +77,15 @@ pub fn dmb() {
 //         }
 //     }
 // }
+
+pub fn cleanCacheRange_RAM(start: usize, end: usize, pstart: usize) {
+    cleanCacheRange_PoC(start, end, pstart);
+
+    dsb();
+
+    plat_cleanL2Range(pstart, pstart + (end - start));
+}
+
+pub fn cleanCacheRange_PoC(start:usize,end:usize,pstart: usize){
+    
+}

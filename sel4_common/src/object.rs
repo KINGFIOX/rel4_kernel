@@ -37,21 +37,6 @@ impl ObjectType {
         }
     }
 
-    /// Returns the frame type of the object.
-    ///
-    /// # Returns
-    ///
-    /// The frame type of the object.
-    pub fn get_frame_type(&self) -> usize {
-        match self {
-            ObjectType::NormalPageObject => RISCV_4K_Page,
-            ObjectType::MegaPageObject => RISCV_Mega_Page,
-            ObjectType::GigaPageObject => RISCV_Giga_Page,
-            _ => {
-                panic!("Invalid frame type: {:?}", self);
-            }
-        }
-    }
 
     /// Converts a usize value to an ObjectType.
     ///
@@ -67,17 +52,5 @@ impl ObjectType {
             return None;
         }
         unsafe { Some(core::mem::transmute::<u8, ObjectType>(value as u8)) }
-    }
-
-    /// Checks if the object type is an architecture-specific type.
-    ///
-    /// # Returns
-    ///
-    /// true if the object type is an architecture-specific type, false otherwise.
-    pub fn is_arch_type(self) -> bool {
-        match self {
-            Self::GigaPageObject | Self::NormalPageObject | Self::MegaPageObject => true,
-            _ => false,
-        }
     }
 }
