@@ -6,7 +6,7 @@
 #![allow(non_upper_case_globals)]
 
 pub mod arch;
-mod console;
+pub mod console;
 pub mod fault;
 mod ffi;
 pub mod logging;

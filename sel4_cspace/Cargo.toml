@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 sel4_common = { path = "../sel4_common"}
+riscv = { git = "https://gitee.com/rcore-os/riscv", features = ["inline-asm"] }

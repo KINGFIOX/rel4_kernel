@@ -3,10 +3,7 @@ use sel4_common::{
     structures::exception_t, utils::pageBitsForSize, vm_rights::vm_rights_from_word, MASK,
 };
 
-use crate::{
-    cte::{cte_t, deriveCap_ret},
-    structures::finaliseCap_ret,
-};
+use crate::cte::{cte_t, deriveCap_ret};
 
 /// Cap 在内核态中的种类枚举
 #[derive(Eq, PartialEq, Debug)]
@@ -258,4 +255,3 @@ pub fn arch_same_object_as(cap1: &cap_t, cap2: &cap_t) -> bool {
     }
     arch_same_region_as(cap1, cap2)
 }
-

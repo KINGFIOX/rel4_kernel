@@ -69,7 +69,7 @@ pub const CONFIG_TIME_SLICE: usize = 5;
 // TCB relevant
 #[cfg(target_arch = "riscv64")]
 pub const seL4_TCBBits: usize = 10;
-#[cfg(target_arch = "aarch64")]
+#[cfg(any(target_arch = "aarch64", test))]
 pub const seL4_TCBBits: usize = 11;
 pub const TCB_SIZE_BITS: usize = seL4_TCBBits - 1;
 pub const TCB_OFFSET: usize = BIT!(TCB_SIZE_BITS);
