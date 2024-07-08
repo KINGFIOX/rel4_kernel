@@ -1,4 +1,6 @@
-use sel4_common::plus_define_bitfield;
+use sel4_common::{plus_define_bitfield, structures::exception_t};
+
+use crate::{cte::deriveCap_ret, interface::cte_t};
 
 /// Cap 在内核态中的种类枚举
 #[derive(Eq, PartialEq, Debug)]
@@ -106,5 +108,38 @@ plus_define_bitfield! {
             capASIDBase, get_asid_base, set_asid_base, 0, 43, 16, 0, false,
             capASIDPool, get_asid_pool, set_asid_pool, 0, 0, 37, 2, true
         }
+    }
+}
+
+impl cte_t{
+    pub fn arch_derive_cap(&mut self, cap: &cap_t) -> deriveCap_ret {
+        let mut ret = deriveCap_ret {
+            status: exception_t::EXCEPTION_NONE,
+            cap: cap_t::default(),
+        };
+        match cap.get_cap_type() {
+            CapTag::CapPageGlobalDirectoryCap => {
+                if cap.get_pgd_is_mapped() != 0 {
+                    ret.cap = cap.clone();
+                    ret.status = exception_t::EXCEPTION_NONE;
+                } else {
+                    ret.cap = cap_t::new_null_cap();
+                    ret.status = exception_t::EXCEPTION_SYSCALL_ERROR;
+                }
+            }
+            CapTag::CapFrameCap => {
+                let mut newCap = cap.clone();
+                newCap.set_frame_mapped_address(0);
+                newCap.set_frame_mapped_asid(0);
+                ret.cap = newCap;
+            }
+            CapTag::CapASIDControlCap | CapTag::CapASIDPoolCap => {
+                ret.cap = cap.clone();
+            }
+            _ => {
+                panic!(" Invalid arch cap type : {}", cap.get_cap_type() as usize);
+            }
+        }
+        ret
     }
 }

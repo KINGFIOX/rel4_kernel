@@ -1,4 +1,6 @@
-use sel4_common::plus_define_bitfield;
+use sel4_common::{plus_define_bitfield, structures::exception_t};
+
+use crate::{cte::deriveCap_ret, interface::cte_t};
 // cap_t 表示一个capability，由两个机器字组成，包含了类型、对象元数据以及指向内核对象的指针。
 // 每个类型的capability的每个字段都实现了get和set方法。
 plus_define_bitfield! {
@@ -87,4 +89,37 @@ pub enum CapTag {
     CapPageTableCap = 3,
     CapASIDControlCap = 11,
     CapASIDPoolCap = 13,
+}
+
+impl cte_t{
+    pub fn arch_derive_cap(&mut self, cap: &cap_t) -> deriveCap_ret {
+        let mut ret = deriveCap_ret {
+            status: exception_t::EXCEPTION_NONE,
+            cap: cap_t::default(),
+        };
+        match cap.get_cap_type() {
+            CapTag::CapPageTableCap => {
+                if cap.get_pt_is_mapped() != 0 {
+                    ret.cap = cap.clone();
+                    ret.status = exception_t::EXCEPTION_NONE;
+                } else {
+                    ret.cap = cap_t::new_null_cap();
+                    ret.status = exception_t::EXCEPTION_SYSCALL_ERROR;
+                }
+            }
+            CapTag::CapFrameCap => {
+                let mut newCap = cap.clone();
+                newCap.set_frame_mapped_address(0);
+                newCap.set_frame_mapped_asid(0);
+                ret.cap = newCap;
+            }
+            CapTag::CapASIDControlCap | CapTag::CapASIDPoolCap => {
+                ret.cap = cap.clone();
+            }
+            _ => {
+                panic!(" Invalid arch cap type : {}", cap.get_cap_type() as usize);
+            }
+        }
+        ret
+    }
 }
