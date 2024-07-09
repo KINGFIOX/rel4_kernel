@@ -1,5 +1,6 @@
 mod boot;
 mod c_traps;
+mod consts;
 mod exception;
 mod ffi;
 mod pg;

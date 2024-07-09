@@ -37,14 +37,6 @@ pub fn set_timer(timer: usize) {
     sbi_call(SBI_SET_TIMER, timer, 0, 0);
 }
 
-pub fn console_putchar(c: usize) {
-    sbi_call(SBI_CONSOLE_PUTCHAR, c, 0, 0);
-}
-
-pub fn console_getchar() -> usize {
-    sbi_call(SBI_CONSOLE_GETCHAR, 0, 0, 0)
-}
-
 pub fn clear_ipi() {
     sbi_call(SBI_CLEAR_IPI, 0, 0, 0);
 }

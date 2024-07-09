@@ -1,4 +1,4 @@
-use core::intrinsics::unlikely;
+use core::{intrinsics::unlikely, ops::{Deref, DerefMut}};
 
 use super::{
     machine::{setCurrentUserVSpaceRoot, ttbr_new},
@@ -16,30 +16,56 @@ use sel4_cspace::interface::{cap_t, CapTag};
 
 use super::utils::{kpptr_to_paddr, GET_KPT_INDEX};
 
-#[no_mangle]
-#[link_section = ".page_table"]
-pub(crate) static mut armKSGlobalKernelPGD: [pte_t; BIT!(PT_INDEX_BITS)] =
-    [pte_t(0); BIT!(PT_INDEX_BITS)];
+
+pub const PageAlignedLen: usize = BIT!(PT_INDEX_BITS);
+#[repr(align(4096))]
+#[derive(Clone, Copy)]
+pub struct PageAligned<T>([T; PageAlignedLen]);
+
+impl<T: Copy> PageAligned<T> {
+    pub const fn new(v: T) -> Self {
+        Self([v; PageAlignedLen])
+    }
+}
+
+impl<T> Deref for PageAligned<T> {
+    type Target = [T; PageAlignedLen];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for PageAligned<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 #[no_mangle]
 #[link_section = ".page_table"]
-pub(crate) static mut armKSGlobalKernelPUD: [pte_t; BIT!(PT_INDEX_BITS)] =
-    [pte_t(0); BIT!(PT_INDEX_BITS)];
+pub(crate) static mut armKSGlobalKernelPGD: PageAligned<pte_t> = PageAligned::new(pte_t(0));
 
 #[no_mangle]
 #[link_section = ".page_table"]
-pub(crate) static mut armKSGlobalKernelPDs: [[pte_t; BIT!(PT_INDEX_BITS)]; BIT!(PT_INDEX_BITS)] =
-    [[pte_t(0); BIT!(PT_INDEX_BITS)]; BIT!(PT_INDEX_BITS)];
+pub(crate) static mut armKSGlobalKernelPUD: PageAligned<pte_t> = PageAligned::new(pte_t(0));
+
+// #[no_mangle]
+// #[link_section = ".page_table"]
+// pub(crate) static mut armKSGlobalKernelPDs: [[pte_t; BIT!(PT_INDEX_BITS)]; BIT!(PT_INDEX_BITS)] =
+//     [[pte_t(0); BIT!(PT_INDEX_BITS)]; BIT!(PT_INDEX_BITS)];
+#[no_mangle]
+#[link_section = ".page_table"]
+pub(crate) static mut armKSGlobalKernelPDs: PageAligned<PageAligned<pte_t>> = 
+    PageAligned::new(PageAligned::new(pte_t(0)));
 
 #[no_mangle]
 #[link_section = ".page_table"]
-pub(crate) static mut armKSGlobalUserVSpace: [pte_t; BIT!(PT_INDEX_BITS)] =
-    [pte_t(0); BIT!(PT_INDEX_BITS)];
+pub(crate) static mut armKSGlobalUserVSpace: PageAligned<pte_t> = PageAligned::new(pte_t(0));
 
 #[no_mangle]
 #[link_section = ".page_table"]
-pub(crate) static mut armKSGlobalKernelPT: [pte_t; BIT!(PT_INDEX_BITS)] =
-    [pte_t(0); BIT!(PT_INDEX_BITS)];
+pub(crate) static mut armKSGlobalKernelPT: PageAligned<pte_t> = PageAligned::new(pte_t(0));
 
 #[no_mangle]
 pub fn rust_map_kernel_window() {
