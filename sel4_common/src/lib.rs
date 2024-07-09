@@ -7,6 +7,7 @@
 #![allow(non_upper_case_globals)]
 
 pub mod arch;
+pub mod cap_rights;
 pub mod console;
 pub mod fault;
 mod ffi;
@@ -18,6 +19,7 @@ pub mod sel4_config;
 pub mod smp;
 pub mod structures;
 pub mod utils;
+pub mod vm_rights;
 
 /// The ffi_call macro, It declares the function and call it
 ///
@@ -29,13 +31,13 @@ pub mod utils;
 /// // call with arguments
 /// // Format is fname(arg_name:type => value) -> ret_type
 /// ffi_call!(handleUnknownSyscall, a1:usize => 1);
-/// 
+///
 /// ffi_call!(some_function);
-/// 
+///
 /// ffi_call!(another_function -> i32);
-/// 
+///
 /// ffi_call!(multi_arg_function(a: i32 => 1, b: f64 => 3.14));
-/// 
+///
 /// ffi_call!(multi_arg_function_with_return(a: i32 => 1, b: f64 => 3.14) -> i64);
 /// ```
 pub macro ffi_call {
@@ -81,5 +83,3 @@ pub macro ffi_call {
         }
     },
 }
-pub mod cap_rights;
-pub mod vm_rights;
