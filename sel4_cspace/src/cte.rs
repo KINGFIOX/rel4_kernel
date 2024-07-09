@@ -74,8 +74,6 @@ impl cte_t {
         ret
     }
 
-    
-
     pub fn ensure_no_children(&self) -> exception_t {
         if self.cteMDBNode.get_next() != 0 {
             let next = convert_to_type_ref::<cte_t>(self.cteMDBNode.get_next());

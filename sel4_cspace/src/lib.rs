@@ -27,13 +27,13 @@ pub mod arch;
 
 #[cfg(test)]
 mod tests {
-    use arch::cap_t;
+    use arch::{cap_t, CapTag};
     use cap::same_object_as;
     use core::arch::global_asm;
-    use cte::cte_t;
+    use cte::{cte_insert, cte_move, cte_swap, cte_t, insert_new_cap, resolve_address_bits};
     use mdb::mdb_node_t;
     use riscv::register::{stvec, utvec::TrapMode};
-    use sel4_common::{arch::shutdown, println};
+    use sel4_common::{arch::shutdown, println, utils::convert_to_mut_type_ref};
     global_asm!(include_str!("entry.asm"));
 
     use super::*;
@@ -44,9 +44,9 @@ mod tests {
         }
     }
 
-    #[no_mangle]
     #[test_case]
     pub fn same_object_as_test() {
+        println!("-----------------------------------");
         println!("Entering same_object_as_test case");
         let cap1 = cap_t::new_cnode_cap(1, 1, 1, 1);
         let cap3 = cap_t::new_cnode_cap(2, 1, 1, 1);
@@ -59,20 +59,202 @@ mod tests {
         assert_eq!(same_object_as(&cte1.cap, &cap2), false);
         assert_eq!(same_object_as(&cap2, &cap3), true);
         println!("Test same_object_as_test passed");
+        println!("-----------------------------------");
     }
+
+    #[test_case]
+    pub fn cte_insert_test() {
+        println!("-----------------------------------");
+        println!("Entering cte_insert_test case");
+        let cap1 = cap_t::new_asid_control_cap();
+        let cap2 = cap_t::new_domain_cap();
+        let mut cte1 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+        let mut cte2 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+        let mut cte3 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+        cte_insert(&cap1, &mut cte1, &mut cte2);
+        cte_insert(&cap2, &mut cte2, &mut cte3);
+        assert_eq!(cte2.cap.get_cap_type(), CapTag::CapASIDControlCap);
+        assert_eq!(cte3.cap.get_cap_type(), CapTag::CapDomainCap);
+        assert_eq!(cte1.cteMDBNode.get_next(), &mut cte2 as *mut cte_t as usize);
+        assert_eq!(cte2.cteMDBNode.get_next(), &mut cte3 as *mut cte_t as usize);
+        assert_eq!(cte2.cteMDBNode.get_prev(), &mut cte1 as *mut cte_t as usize);
+        assert_eq!(cte3.cteMDBNode.get_prev(), &mut cte2 as *mut cte_t as usize);
+        println!("Test cte_insert_test passed");
+    }
+
+    #[test_case]
+    pub fn cte_move_test() {
+        println!("-----------------------------------");
+        println!("Entering cte_move_test case");
+        let cap1 = cap_t::new_asid_control_cap();
+        let cap2 = cap_t::new_domain_cap();
+        let cap3 = cap_t::new_irq_control_cap();
+        let mut cte1 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+        let mut cte2 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+        let mut cte3 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+        let mut cte4 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+        cte_insert(&cap1, &mut cte1, &mut cte2);
+        cte_insert(&cap2, &mut cte2, &mut cte3);
+        assert_eq!(cte1.cteMDBNode.get_next(), &mut cte2 as *mut cte_t as usize);
+        assert_eq!(cte2.cteMDBNode.get_next(), &mut cte3 as *mut cte_t as usize);
+        assert_eq!(cte2.cteMDBNode.get_prev(), &mut cte1 as *mut cte_t as usize);
+        assert_eq!(cte3.cteMDBNode.get_prev(), &mut cte2 as *mut cte_t as usize);
+        cte_move(&cap3, &mut cte2, &mut cte4);
+        assert_eq!(cte4.cap.get_cap_type(), CapTag::CapIrqControlCap);
+        assert_eq!(cte4.cteMDBNode.get_next(), &mut cte3 as *mut cte_t as usize);
+        assert_eq!(cte4.cteMDBNode.get_prev(), &mut cte1 as *mut cte_t as usize);
+        assert_eq!(cte1.cteMDBNode.get_next(), &mut cte4 as *mut cte_t as usize);
+        assert_eq!(cte3.cteMDBNode.get_prev(), &mut cte4 as *mut cte_t as usize);
+        assert_ne!(cte1.cteMDBNode.get_next(), &mut cte2 as *mut cte_t as usize);
+        assert_ne!(cte3.cteMDBNode.get_prev(), &mut cte2 as *mut cte_t as usize);
+        assert_ne!(cte2.cteMDBNode.get_next(), &mut cte3 as *mut cte_t as usize);
+        assert_ne!(cte2.cteMDBNode.get_prev(), &mut cte1 as *mut cte_t as usize);
+        println!("Test cte_move_test passed");
+    }
+
+    #[test_case]
+    pub fn cte_swap_test() {
+        println!("-----------------------------------");
+        println!("Entering cte_swap_test case");
+        let cap1 = cap_t::new_asid_control_cap();
+        let cap2 = cap_t::new_domain_cap();
+        let mut cte1 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+        let mut cte2 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+
+        let mut cte3 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+        let mut cte4 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+
+        cte_insert(&cap1, &mut cte1, &mut cte2);
+        cte_insert(&cap2, &mut cte3, &mut cte4);
+        assert_eq!(cte1.cteMDBNode.get_next(), &mut cte2 as *mut cte_t as usize);
+        assert_eq!(cte2.cteMDBNode.get_prev(), &mut cte1 as *mut cte_t as usize);
+        assert_eq!(cte3.cteMDBNode.get_next(), &mut cte4 as *mut cte_t as usize);
+        assert_eq!(cte4.cteMDBNode.get_prev(), &mut cte3 as *mut cte_t as usize);
+        cte_swap(&cap1, &mut cte2, &cap2, &mut cte4);
+        assert_eq!(cte2.cap.get_cap_type(), CapTag::CapDomainCap);
+        assert_eq!(cte4.cap.get_cap_type(), CapTag::CapASIDControlCap);
+        println!(
+            "{} {}",
+            &mut cte1 as *mut cte_t as usize, &mut cte2 as *mut cte_t as usize
+        );
+        assert_eq!(cte4.cteMDBNode.get_prev(), &mut cte1 as *mut cte_t as usize);
+        assert_eq!(cte1.cteMDBNode.get_next(), &mut cte4 as *mut cte_t as usize);
+        assert_eq!(cte2.cteMDBNode.get_prev(), &mut cte3 as *mut cte_t as usize);
+        assert_eq!(cte3.cteMDBNode.get_next(), &mut cte2 as *mut cte_t as usize);
+
+        println!("Test cte_swap_test passed");
+    }
+
+    #[test_case]
+    pub fn insert_new_cap_test() {
+        println!("-----------------------------------");
+        println!("Entering insert_new_cap_test case");
+        let cap1 = cap_t::new_asid_control_cap();
+        let cap2 = cap_t::new_domain_cap();
+        let mut cte1 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+        let mut cte2 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+        let mut cte3 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+        cte_insert(&cap1, &mut cte1, &mut cte2);
+        assert_eq!(cte2.cap.get_cap_type(), CapTag::CapASIDControlCap);
+        assert_eq!(cte1.cteMDBNode.get_next(), &mut cte2 as *mut cte_t as usize);
+        assert_eq!(cte2.cteMDBNode.get_prev(), &mut cte1 as *mut cte_t as usize);
+        insert_new_cap(&mut cte1, &mut cte3, &cap2);
+        assert_eq!(cte1.cteMDBNode.get_next(), &mut cte3 as *mut cte_t as usize);
+        assert_eq!(cte3.cteMDBNode.get_next(), &mut cte2 as *mut cte_t as usize);
+        assert_eq!(cte2.cteMDBNode.get_prev(), &mut cte3 as *mut cte_t as usize);
+        assert_eq!(cte3.cteMDBNode.get_prev(), &mut cte1 as *mut cte_t as usize);
+        println!("Test insert_new_cap_test passed");
+    }
+
+    #[test_case]
+    pub fn resolve_address_bits_test() {
+        println!("-----------------------------------");
+        println!("Entering resolve_address_bits_test case");
+        //cap_ptr structure:
+        // guard1(2 bits)|offset1(3 bits)|guard2(2 bits)|offset2(3 bits)
+        let buffer: [u8; 1024] = [0; 1024];
+        let guardSize = 2;
+        let guard1 = 2;
+        let guard2 = 3;
+        let cap1 = cap_t::new_cnode_cap(3, guardSize, guard1, buffer.as_ptr() as usize);
+        let cap2 = cap_t::new_cnode_cap(3, guardSize, guard2, buffer.as_ptr() as usize);
+        let mut cte1 = cte_t {
+            cap: cap_t::new_null_cap(),
+            cteMDBNode: mdb_node_t::new(0, 0, 0, 0),
+        };
+        let cap3 = cap_t::new_domain_cap();
+        let idx: usize = 2;
+        let cap_ptr = (guard1 << 8) | (idx << 5) | (guard2 << 3) | idx;
+        insert_new_cap(
+            &mut cte1,
+            convert_to_mut_type_ref(cap1.get_cnode_ptr() + idx * 32),
+            &cap2,
+        );
+        insert_new_cap(
+            &mut cte1,
+            convert_to_mut_type_ref(cap2.get_cnode_ptr() + idx * 32),
+            &cap3,
+        );
+        let res_ret = resolve_address_bits(&cap1, cap_ptr, 10);
+        let ret_cap = unsafe{(*(res_ret.slot)).cap};
+        assert_eq!(ret_cap.get_cap_type(),CapTag::CapDomainCap);
+        println!("Test resolve_address_bits_test passed");
+    }
+
     #[test_case]
     pub fn shutdown_test() {
         println!("All Test Cases passed, shutdown");
         shutdown();
     }
+
     #[panic_handler]
     fn panic(info: &core::panic::PanicInfo) -> ! {
         println!("{}", info);
         shutdown()
     }
-    const STACK_SIZE: usize = 4096;
-    #[link_section = ".bss.stack"]
-    static mut BOOT_STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
+
     #[no_mangle]
     pub fn call_test_main() {
         extern "C" {
@@ -89,34 +271,4 @@ mod tests {
             core::arch::asm!("sret");
         }
     }
-    // #[no_mangle]
-    // pub extern "C" fn _start() -> ! {
-    //     unsafe {
-    //         core::arch::asm!(
-    //             // 1. 设置栈信息
-    //             // sp = bootstack + (hartid + 1) * 0x10000
-    //             "2:
-    //             la      sp, {boot_stack}
-    //             li      t0, {stack_size}
-    //             add     sp, sp, t0              // set boot stack
-    //         ",
-    //             // 3. 跳到 rust_main 函数，绝对路径
-    //             "
-    //             la      a2, {entry}
-    //             or      a2, a2, s0
-    //             jalr    a2                      // call rust_main
-    //         ",
-    //             stack_size = const crate::tests::STACK_SIZE,
-    //             boot_stack = sym crate::tests::BOOT_STACK,
-    //             entry = sym crate::tests::test_main,
-    //             options(noreturn),
-    //         )
-    //     }
-    // }
-
-    // #[no_mangle]
-    // pub fn test_main() {
-    //     println!("hello world!");
-    //     crate::tests::test_runner(&[&(crate::tests::same_object_as_test)]);
-    // }
 }
