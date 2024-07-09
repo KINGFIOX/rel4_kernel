@@ -1,0 +1,12 @@
+[package]
+name = "driver-collect"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serial-frame = { path = "../drivers/serial-frame" }
+serial-impl-pl011 = { path = "../drivers/serial-impl/pl011" }
+serial-impl-sbi = { path = "../drivers/serial-impl/sbi" }
+cfg-if = "1.0.0"
