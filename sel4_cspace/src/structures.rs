@@ -3,6 +3,15 @@ use sel4_common::structures::exception_t;
 
 use super::arch::cap_t;
 
+/// This struct is used when finaliseSlot return a value,
+/// 
+/// Arguments:
+/// 
+/// Status: exit value
+/// 
+/// success: Whether the finalising process is successfully
+/// 
+/// cleanupInfo: When finalise tcb_cap or cnode_cap, cleanupInfo is zombie_cap, otherwise cleanupInfo is null_cap
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct finaliseSlot_ret {

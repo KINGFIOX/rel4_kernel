@@ -1,3 +1,4 @@
+//! `CSpace Table Entry`相关操作的具体实现，包含`cte`链表的插入删除等。
 use super::{
     arch::{cap_t, CapTag},
     cap::{is_cap_revocable, same_object_as, same_region_as},
@@ -73,7 +74,7 @@ impl cte_t {
         }
         ret
     }
-
+    /// 判断当前`cte`是否存在派生出来的子节点
     pub fn ensure_no_children(&self) -> exception_t {
         if self.cteMDBNode.get_next() != 0 {
             let next = convert_to_type_ref::<cte_t>(self.cteMDBNode.get_next());
@@ -83,7 +84,7 @@ impl cte_t {
         }
         return exception_t::EXCEPTION_NONE;
     }
-
+    /// 判断当前`cte`是否为`next`节点的父节点（除了父节点，还有兄弟节点的关系可能）
     fn is_mdb_parent_of(&self, next: &Self) -> bool {
         if !(self.cteMDBNode.get_revocable() != 0) {
             return false;
@@ -115,6 +116,8 @@ impl cte_t {
         }
     }
 
+    /// 判断当前`cte`是否是能力派生树上的最后一个能力,如果`prev`与当前指向对象，则当前`cte`不是最后一个`cap`
+    /// 如果`cte`的`next`是当前`cte`派生出来的能力，则当前`cte`也不是最后一个`cap`
     pub fn is_final_cap(&self) -> bool {
         let mdb = &self.cteMDBNode;
         let prev_is_same_obj = if mdb.get_prev() == 0 {
@@ -146,6 +149,15 @@ impl cte_t {
         }
     }
 
+    ///清除`cte slot`中的`capability`
+    /// 因为涉及到几个函数之间的来回调用，不太好理解，所以用一个`CNode cap`删除的例子来帮助理解，
+    /// 假设现在有一个`CNode`的`slot`要执行`delete_all(true)`，会先调用`finalise(true)`，在`finaliseCap`中，
+    /// 会将`cnode_cap`设置为`zombie_cap`，然后进入`reduce_zombie`,
+    /// `reduce_zombie`会调用最后一个`slot`的`delete_all(false)`函数，然后再次进入`finalise(false)`
+    /// 假设最后一个`slot`存储的`cap`为一个二级`cnode_cap`，则会在`finaliseCap`中生成一个新的`zombie_cap`，
+    /// 之后再次进入`reduce_zombie(false)`，在其中进入`else`分支，
+    /// 执行`cteswap`将二级`cnode_cap`中的第一个`cap`与二级`cnode_cap`进行交换，使得二级`cnode_cap`指向自身，变成`cyclicZombie`。
+    /// 然后继续清除即可。至于二级`cnode_cap`其实无法被清除。
     unsafe fn finalise(&mut self, immediate: bool) -> finaliseSlot_ret {
         let mut ret = finaliseSlot_ret::default();
         while self.cap.get_cap_type() != CapTag::CapNullCap {
@@ -182,6 +194,8 @@ impl cte_t {
         ret
     }
 
+    /// 将当前的`cte slot`中的能力清除，因为可能是`cnode_cap`或者`tcb_cap`，其中都可以存储多个`cap`，
+    /// 所以可能顺带将存储的`cap`也清除掉
     pub fn delete_all(&mut self, exposed: bool) -> exception_t {
         let fs_ret = unsafe { self.finalise(exposed) };
         if fs_ret.status != exception_t::EXCEPTION_NONE {
@@ -193,6 +207,7 @@ impl cte_t {
         return exception_t::EXCEPTION_NONE;
     }
 
+    /// 将当前的`cte slot`中的能力清除,要求`cap`是可删除的
     pub fn delete_one(&mut self) {
         if self.cap.get_cap_type() != CapTag::CapNullCap {
             let fc_ret = unsafe { finaliseCap(&self.cap, self.is_final_cap(), true) };
@@ -204,6 +219,7 @@ impl cte_t {
         }
     }
 
+    /// 将当前`slot`从`capability derivation tree`中删除
     fn set_empty(&mut self, cleanup_info: &cap_t) {
         if self.cap.get_cap_type() != CapTag::CapNullCap {
             let mdb_node = self.cteMDBNode;
@@ -228,6 +244,7 @@ impl cte_t {
         }
     }
 
+    /// 每次删除`zombie cap`中的最后一个`capability`,用于删除unremovable的capability。
     fn reduce_zombie(&mut self, immediate: bool) -> exception_t {
         assert_eq!(self.cap.get_cap_type(), CapTag::CapZombieCap);
         let self_ptr = self as *mut cte_t as usize;
@@ -283,6 +300,7 @@ impl cte_t {
         }
     }
 
+    // 撤销当前`cte`中的`capability`
     #[inline]
     pub fn revoke(&mut self) -> exception_t {
         while let Some(cte) = convert_to_option_mut_type_ref::<cte_t>(self.get_volatile_value()) {
@@ -336,6 +354,7 @@ pub fn cte_insert(new_cap: &cap_t, src_slot: &mut cte_t, dest_slot: &mut cte_t) 
     }
 }
 
+/// insert a new cap to slot, set parent's next is slot.
 pub fn insert_new_cap(parent: &mut cte_t, slot: &mut cte_t, cap: &cap_t) {
     let next = parent.cteMDBNode.get_next();
     slot.cap = cap.clone();
@@ -423,6 +442,7 @@ pub fn cte_swap(cap1: &cap_t, slot1: &mut cte_t, cap2: &cap_t, slot2: &mut cte_t
     }
 }
 
+/// 判断当前`cap`能否被删除，只有`CNode Capability`能够做到`slot=z_slot`，且n==1意味着是`tcb`初始分配的`CNode`。
 #[inline]
 fn cap_removable(cap: &cap_t, slot: *mut cte_t) -> bool {
     match cap.get_cap_type() {
@@ -441,6 +461,8 @@ fn cap_removable(cap: &cap_t, slot: *mut cte_t) -> bool {
     }
 }
 
+/// 如果`srcCap`和`newCap`都是`UntypedCap`，并且指向同一块内存，内存大小也相同，就将`srcCap`记录为没有剩余空间。
+/// 自我认为是防止同一块内存空间被分配两次
 fn setUntypedCapAsFull(srcCap: &cap_t, newCap: &cap_t, srcSlot: &mut cte_t) {
     if srcCap.get_cap_type() == CapTag::CapUntypedCap
         && newCap.get_cap_type() == CapTag::CapUntypedCap
@@ -459,6 +481,8 @@ fn setUntypedCapAsFull(srcCap: &cap_t, newCap: &cap_t, srcSlot: &mut cte_t) {
 /// 从cspace寻址特定的slot
 ///
 /// 从给定的cnode、cap index、和depth中找到对应cap的slot，成功则返回slot指针，失败返回找到的最深的cnode
+/// 
+/// Parse cap_ptr ,get a capbility from cnode.
 #[allow(unreachable_code)]
 pub fn resolve_address_bits(
     node_cap: &cap_t,

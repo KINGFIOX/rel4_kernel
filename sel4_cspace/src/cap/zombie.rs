@@ -1,9 +1,12 @@
+//! zombie cap相关字段和方法
+//! 当`tcb_cap`和`cnode_cap`删除的过程中会变为`zombie_cap`
 use crate::cte::cte_t;
 use sel4_common::sel4_config::wordRadix;
 use sel4_common::MASK;
 
 use super::{cap_t, CapTag};
 
+/// Judge whether the zombie cap is from tcb cap.
 pub const ZombieType_ZombieTCB: usize = 1usize << wordRadix;
 pub const TCB_CNODE_RADIX: usize = 4;
 
@@ -53,6 +56,8 @@ pub fn ZombieType_ZombieCNode(n: usize) -> usize {
     return n & MASK!(wordRadix);
 }
 
+///判断是否为循环`zombie cap`,指向自身且类型为`CapZombieCap`（似乎只有`CNode Capability`指向自己才会出现这种情况）
+/// 根据网上信息，当`cnode cap`为L2以上时，即`CNode`嵌套`CNode`的情况，就会产生`CyclicZombie`
 #[inline]
 #[no_mangle]
 pub fn capCyclicZombie(cap: &cap_t, slot: *mut cte_t) -> bool {
