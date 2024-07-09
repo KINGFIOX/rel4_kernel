@@ -7,6 +7,7 @@ edition = "2021"
 riscv = { git = "https://github.com/rcore-os/riscv", features = ["inline-asm"] }
 log = "0.4.21"
 spin = { version = "0.9", features = ["use_ticket_mutex"] }
+driver-collect = { path = "../driver-collect" }
 
 [features]
 ENABLE_SMP = []

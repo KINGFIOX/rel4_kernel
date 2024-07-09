@@ -1,12 +1,19 @@
 use core::intrinsics::unlikely;
 
 use crate::{
-    arch::aarch64::machine::{clean_by_va_pou, invalidate_local_tlb_asid},
+    arch::aarch64::{
+        machine::{clean_by_va_pou, invalidate_local_tlb_asid},
+        structures::{
+            lookupPDSlot_ret_t, lookupPGDSlot_ret_t, lookupPTSlot_ret_t, lookupPUDSlot_ret_t,
+        },
+        utils::{GET_PD_INDEX, GET_PGD_INDEX, GET_PT_INDEX, GET_UPUD_INDEX},
+    },
     asid_t, find_vspace_for_asid, pptr_to_paddr, pte_t, vm_attributes_t, vptr_t,
 };
 use sel4_common::{
     arch::vm_rights_t,
-    sel4_config::seL4_PageTableBits,
+    fault::lookup_fault_t,
+    sel4_config::{seL4_PageBits, seL4_PageTableBits, PT_INDEX_BITS},
     structures::exception_t,
     utils::{convert_ref_type_to_usize, convert_to_mut_type_ref},
     BIT,
@@ -186,5 +193,106 @@ impl pte_t {
             convert_ref_type_to_usize(ptSlot),
             pptr_to_paddr(convert_ref_type_to_usize(ptSlot)),
         )
+    }
+
+    ///用于记录某个虚拟地址`vptr`对应的pte表项在内存中的位置
+    pub fn lookup_pt_slot(&self, vptr: vptr_t) -> lookupPTSlot_ret_t {
+        let pdSlot = self.lookup_pd_slot(vptr);
+        if pdSlot.status != exception_t::EXCEPTION_NONE {
+            let ret = unsafe {
+                lookupPTSlot_ret_t {
+                    status: pdSlot.status,
+                    ptSlot: 0 as *mut pte_t,
+                }
+            };
+            return ret;
+        }
+        unsafe {
+            if ((*pdSlot.pdSlot).0 & 0x3) != 3 {
+                // todo!() I cannot use current_lookup_fault here
+                // current_lookup_fault =lookup_fault_t::new_missing_cap(seL4_PageBits+PT_INDEX_BITS);
+                let ret = unsafe {
+                    lookupPTSlot_ret_t {
+                        status: exception_t::EXCEPTION_LOOKUP_FAULT,
+                        ptSlot: 0 as *mut pte_t,
+                    }
+                };
+                return ret;
+            }
+        }
+        let ptIndex = GET_PT_INDEX(vptr);
+        let pt = unsafe { paddr_to_pptr((*pdSlot.pdSlot).0 & 0xfffffffff000) as *mut pte_t };
+
+        let ret = lookupPTSlot_ret_t {
+            status: exception_t::EXCEPTION_NONE,
+            ptSlot: unsafe { pt.add(ptIndex) },
+        };
+        ret
+    }
+    // acturally the lookup pd slot can only be seen under aarch64 and x86 in sel4
+    // and in sel4, it should be the impl function of vspace_root_t
+    // but as it define the pde_t as vspace_root_t and define pte_t as vspace_root_t
+    // so I think it is reasonable here to let those functions as a member funcion of pte_t
+    // commented by ZhiyuanSue
+    pub fn lookup_pd_slot(&self, vptr: vptr_t) -> lookupPDSlot_ret_t {
+        let pudSlot = self.lookup_pud_slot(vptr);
+        if pudSlot.status != exception_t::EXCEPTION_NONE {
+            let ret = unsafe {
+                lookupPDSlot_ret_t {
+                    status: pudSlot.status,
+                    pdSlot: unsafe { 0 as *mut pte_t },
+                }
+            };
+            return ret;
+        }
+        unsafe {
+            if ((*pudSlot.pudSlot).0 & 0x3) != 3 {
+                // todo!() I cannot use current_lookup_fault here
+                // current_lookup_fault =lookup_fault_t::new_missing_cap(seL4_PageBits+PT_INDEX_BITS);
+                let ret = lookupPDSlot_ret_t {
+                    status: exception_t::EXCEPTION_LOOKUP_FAULT,
+                    pdSlot: 0 as *mut pte_t,
+                };
+                return ret;
+            }
+        }
+        let pdIndex = GET_PD_INDEX(vptr);
+        let pd = unsafe { paddr_to_pptr((*pudSlot.pudSlot).0 & 0xfffffffff000) as *mut pte_t };
+
+        let ret = lookupPDSlot_ret_t {
+            status: exception_t::EXCEPTION_NONE,
+            pdSlot: unsafe { pd.add(pdIndex) },
+        };
+        ret
+    }
+    pub fn lookup_pud_slot(&self, vptr: vptr_t) -> lookupPUDSlot_ret_t {
+        let pgdSlot = self.lookup_pgd_slot(vptr);
+        unsafe {
+            if ((*pgdSlot.pgdSlot).0 & 0x3) != 3 {
+                // todo!() I cannot use current_lookup_fault here
+                // current_lookup_fault =lookup_fault_t::new_missing_cap(seL4_PageBits+PT_INDEX_BITS);
+                let ret = lookupPUDSlot_ret_t {
+                    status: exception_t::EXCEPTION_LOOKUP_FAULT,
+                    pudSlot: 0 as *mut pte_t,
+                };
+                return ret;
+            }
+        }
+        let pudIndex = GET_UPUD_INDEX(vptr);
+        let pud = unsafe { paddr_to_pptr((*pgdSlot.pgdSlot).0 & 0xfffffffff000) as *mut pte_t };
+
+        let ret = lookupPUDSlot_ret_t {
+            status: exception_t::EXCEPTION_NONE,
+            pudSlot: unsafe { pud.add(pudIndex) },
+        };
+        ret
+    }
+    pub fn lookup_pgd_slot(&self, vptr: vptr_t) -> lookupPGDSlot_ret_t {
+        let pgdIndex = GET_PGD_INDEX(vptr);
+        let ret = lookupPGDSlot_ret_t {
+            status: exception_t::EXCEPTION_NONE,
+            pgdSlot: unsafe { (self.0 as *mut pte_t).add(pgdIndex) },
+        };
+        ret
     }
 }

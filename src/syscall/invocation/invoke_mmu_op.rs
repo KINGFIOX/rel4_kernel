@@ -1,3 +1,5 @@
+#[cfg(target_arch = "aarch64")]
+use core::arch::asm;
 use sel4_common::arch::{maskVMRights, ArchReg};
 use sel4_common::cap_rights::seL4_CapRights_t;
 use sel4_common::utils::MAX_FREE_INDEX;
@@ -12,9 +14,10 @@ use sel4_cspace::interface::{cap_t, cte_insert, cte_t};
 use sel4_task::{get_currenct_thread, set_thread_state, ThreadState};
 use sel4_vspace::{
     asid_pool_t, pptr_t, pptr_to_paddr, pte_t, set_asid_pool_by_index, unmapPage, vm_attributes_t,
+    PTEFlags,
 };
 #[cfg(target_arch = "riscv64")]
-use sel4_vspace::{copyGlobalMappings, sfence, PTEFlags};
+use sel4_vspace::{copyGlobalMappings, sfence};
 
 use crate::{kernel::boot::current_lookup_fault, utils::clear_memory};
 
@@ -40,8 +43,10 @@ pub fn invoke_page_table_map(
         let pte = pte_t::new(paddr >> seL4_PageBits, PTEFlags::V);
         *pt_slot = pte;
     }
-    if cfg!(target_arch = "aarch64") {
-        todo!();
+    #[cfg(target_arch = "aarch64")]
+    {
+        let pde = pte_t::new(paddr >> seL4_PageBits, PTEFlags::VALID);
+        *pt_slot = pde;
     }
     pt_cap.set_pt_is_mapped(1);
     pt_cap.set_pt_mapped_asid(asid);
@@ -49,7 +54,13 @@ pub fn invoke_page_table_map(
     #[cfg(target_arch = "riscv64")]
     sfence();
     #[cfg(target_arch = "aarch64")]
-    todo!();
+    unsafe {
+        asm!(
+            "dc cvau, {}",
+            "dmb sy",
+            in(reg) pt_slot,
+        );
+    }
     exception_t::EXCEPTION_NONE
 }
 

@@ -21,6 +21,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--baseline', dest="baseline", action="store_true",
                         help="baseline switch")
+    # parser.add_argument('-a', '--arch', dest="architecture", default="riscv64", help="build architecture")
+    parser.add_argument('-p', '--platform', dest='platform', default='spike', help="set-platform")
     parser.add_argument('-c', '--cpu', dest="cpu_nums", type=int,
                         help="kernel & qemu cpu nums", default=1)
     args = parser.parse_args()
@@ -39,6 +41,12 @@ if __name__ == "__main__":
     args = parse_args()
     clean_config()
     progname = sys.argv[0]
+
+    target = ""
+    if args.platform == "spike":
+        target = "riscv64imac-unknown-none-elf"
+    elif args.platform == "qemu-arm-virt":
+        target = "aarch64-unknown-none-softfloat"
     
     if os.path.exists(build_dir):
         shutil.rmtree(build_dir)
@@ -50,21 +58,21 @@ if __name__ == "__main__":
             sys.exit(-1)
     else:
         if args.cpu_nums > 1:
-            if not exec_shell("cargo build --release --target riscv64imac-unknown-none-elf --features ENABLE_SMP"):
+            if not exec_shell(f"cargo build --release --target {target} --features ENABLE_SMP"):
                 clean_config()
                 sys.exit(-1)
         else:
-            if not exec_shell("cargo build --release --target riscv64imac-unknown-none-elf"):
+            if not exec_shell(f"cargo build --release --target {target}"):
                 clean_config()
                 sys.exit(-1)
     
     if args.cpu_nums > 1:
-        shell_command = "cd ./build && ../../init-build.sh  -DPLATFORM=spike -DSIMULATION=TRUE -DSMP=TRUE && ninja"
+        shell_command = f"cd ./build && ../../init-build.sh  -DPLATFORM={args.platform} -DSIMULATION=TRUE -DSMP=TRUE && ninja"
         if not exec_shell(shell_command):
             clean_config()
             sys.exit(-1)
         sys.exit(0)
-    shell_command = "cd ./build && ../../init-build.sh  -DPLATFORM=spike -DSIMULATION=TRUE && ninja"
+    shell_command = f"cd ./build && ../../init-build.sh  -DPLATFORM={args.platform} -DSIMULATION=TRUE && ninja"
     if not exec_shell(shell_command):
         clean_config()
         sys.exit(-1)

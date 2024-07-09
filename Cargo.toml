@@ -11,11 +11,14 @@ crate-type = ["staticlib"]
 [workspace]
 members = [
     ".",
+    "drivers/serial-impl/*",
+    "drivers/serial-frame",
+    "driver-collect",
     "sel4_common",
     "sel4_cspace",
     "sel4_ipc",
     "sel4_vspace",
-    "sel4_task",
+    "sel4_task"
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -32,6 +35,7 @@ sel4_cspace = { path = "./sel4_cspace" }
 sel4_vspace = { path = "./sel4_vspace"}
 sel4_task = { path = "./sel4_task" }
 sel4_ipc = { path = "./sel4_ipc" }
+driver-collect = { path = "./driver-collect" }
 
 [features]
 ENABLE_SMP = ["sel4_common/ENABLE_SMP", "sel4_task/ENABLE_SMP", "sel4_vspace/ENABLE_SMP"]

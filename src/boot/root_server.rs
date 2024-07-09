@@ -9,10 +9,12 @@ use crate::structures::{
 use crate::{BIT, ROUND_DOWN};
 use log::debug;
 use sel4_common::arch::{vm_rights_t, ArchReg, ArchTCB};
+#[cfg(target_arch = "aarch64")]
+use sel4_common::sel4_config::PT_INDEX_BITS;
 use sel4_common::sel4_config::{
     asidLowBits, seL4_PageBits, seL4_PageTableBits, seL4_SlotBits, seL4_TCBBits, tcbBuffer,
-    tcbCTable, tcbVTable, wordBits, CONFIG_MAX_NUM_NODES, CONFIG_NUM_DOMAINS,
-    CONFIG_TIME_SLICE, IT_ASID, PAGE_BITS, TCB_OFFSET, PT_INDEX_BITS, CONFIG_PT_LEVELS,
+    tcbCTable, tcbVTable, wordBits, CONFIG_MAX_NUM_NODES, CONFIG_NUM_DOMAINS, CONFIG_PT_LEVELS,
+    CONFIG_TIME_SLICE, IT_ASID, PAGE_BITS, TCB_OFFSET,
 };
 use sel4_common::structures::{exception_t, seL4_IPCBuffer};
 use sel4_common::utils::convert_to_mut_type_ref;
@@ -474,7 +476,6 @@ unsafe fn rust_create_it_address_space(root_cnode_cap: &cap_t, it_v_reg: v_regio
         }
         vptr += BIT!(PD_INDEX_OFFSET);
     }
-
 
     let mut i = 0;
     while i < 4 - 1 {

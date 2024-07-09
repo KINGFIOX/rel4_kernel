@@ -31,6 +31,7 @@ pub fn unmapPage(
 
     let lu_ret = unsafe { (*find_ret.vspace_root.unwrap()).lookup_pt_slot(vptr) };
 
+    #[cfg(target_arch = "riscv64")]
     if lu_ret.ptBitsLeft != pageBitsForSize(page_size) {
         return Ok(());
     }

@@ -1,4 +1,6 @@
-use super::{ndks_boot, PAGE_SIZE_BITS};
+use super::ndks_boot;
+#[cfg(target_arch = "aarch64")]
+use super::PAGE_SIZE_BITS;
 use crate::config::CONFIG_ROOT_CNODE_SIZE_BITS;
 use crate::structures::{p_region_t, region_t, v_region_t};
 use crate::{BIT, ROUND_DOWN, ROUND_UP};
