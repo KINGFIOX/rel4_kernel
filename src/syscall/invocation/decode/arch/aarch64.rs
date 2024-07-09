@@ -2,23 +2,28 @@ use crate::config::USER_TOP;
 use crate::kernel::boot::get_extra_cap_by_index;
 use crate::syscall::get_currenct_thread;
 use crate::syscall::invocation::decode::current_syscall_error;
-use crate::syscall::invocation::invoke_mmu_op::invoke_page_table_unmap;
 use crate::syscall::ThreadState;
 use crate::syscall::{current_lookup_fault, get_syscall_arg, set_thread_state, unlikely};
 use log::debug;
-use sel4_common::sel4_config::seL4_InvalidArgument;
 use sel4_common::sel4_config::{asidInvalid, seL4_FailedLookup, seL4_RangeError};
+use sel4_common::sel4_config::{seL4_DeleteFirst, seL4_InvalidArgument};
 use sel4_common::sel4_config::{
     seL4_IllegalOperation, seL4_InvalidCapability, seL4_RevokeFirst, seL4_TruncatedMessage,
+    PD_INDEX_OFFSET,
 };
 use sel4_common::utils::convert_to_mut_type_ref;
 use sel4_common::{
     arch::MessageLabel,
     structures::{exception_t, seL4_IPCBuffer},
+    MASK,
 };
 use sel4_cspace::interface::{cap_t, cte_t, CapTag};
 use sel4_vspace::{find_vspace_for_asid, pte_t};
 
+use crate::syscall::invocation::invoke_mmu_op::{
+    invoke_asid_control, invoke_asid_pool, invoke_page_get_address, invoke_page_map,
+    invoke_page_table_map, invoke_page_table_unmap, invoke_page_unmap,
+};
 use crate::{
     config::maxIRQ,
     interrupt::is_irq_active,
@@ -79,8 +84,28 @@ fn decode_frame_invocation(
     call: bool,
     buffer: Option<&seL4_IPCBuffer>,
 ) -> exception_t {
-    todo!();
-    exception_t::EXCEPTION_NONE
+    match label {
+        MessageLabel::ARMPageMap => exception_t::EXCEPTION_NONE,
+        MessageLabel::ARMPageUnmap => {
+            set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
+            invoke_page_unmap(frame_slot)
+        }
+        MessageLabel::ARMPageClean_Data
+        | MessageLabel::ARMPageInvalidate_Data
+        | MessageLabel::ARMPageCleanInvalidate_Data
+        | MessageLabel::ARMPageUnify_Instruction => exception_t::EXCEPTION_NONE,
+        MessageLabel::ARMPageGetAddress => {
+            set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
+            invoke_page_get_address(frame_slot.cap.get_frame_base_ptr(), call)
+        }
+        _ => {
+            debug!("invalid operation label:{:?}", label);
+            unsafe {
+                current_syscall_error._type = seL4_IllegalOperation;
+            }
+            exception_t::EXCEPTION_SYSCALL_ERROR
+        }
+    }
 }
 
 fn decode_asid_control(
@@ -145,18 +170,25 @@ fn decode_page_table_map(
     let lvl1pt_cap = get_extra_cap_by_index(0).unwrap().cap;
 
     if let Some((lvl1pt, asid)) = get_vspace(&lvl1pt_cap) {
-        // let lu_ret = lvl1pt.lookup_pt_slot(vaddr);
-        // let lu_slot = convert_to_mut_type_ref::<pte_t>(lu_ret.ptSlot as usize);
-        // if lu_ret.ptBitsLeft == seL4_PageBits || lu_slot.get_valid() != 0 {
-        //     debug!("ARMPageTableMap: All objects mapped at this address");
-        //     unsafe {
-        //         current_syscall_error._type = seL4_DeleteFirst;
-        //     }
-        //     return exception_t::EXCEPTION_SYSCALL_ERROR;
-        // }
-        // set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
-        // return invoke_page_table_map(cap, lu_slot, asid, vaddr & !MASK!(lu_ret.ptBitsLeft));
-        exception_t::EXCEPTION_NONE
+        let pd_ret = lvl1pt.lookup_pd_slot(vaddr);
+        if pd_ret.status != exception_t::EXCEPTION_NONE {
+            debug!("ARMPageTableMap: Invalid pd Slot");
+            unsafe {
+                current_syscall_error._type = seL4_FailedLookup;
+                current_syscall_error.failedLookupWasSource = 0;
+            }
+            return exception_t::EXCEPTION_SYSCALL_ERROR;
+        }
+        if unsafe { ((*pd_ret.pdSlot).0 & 0x3) != 3 || ((*pd_ret.pdSlot).0 & 0x3) != 1 } {
+            debug!("RISCVPageTableMap: All objects mapped at this address");
+            unsafe {
+                current_syscall_error._type = seL4_DeleteFirst;
+            }
+            return exception_t::EXCEPTION_SYSCALL_ERROR;
+        }
+        let pdSlot = convert_to_mut_type_ref::<pte_t>(pd_ret.pdSlot as usize);
+        set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
+        return invoke_page_table_map(cap, pdSlot, asid, vaddr & !MASK!(PD_INDEX_OFFSET));
     } else {
         return exception_t::EXCEPTION_SYSCALL_ERROR;
     }

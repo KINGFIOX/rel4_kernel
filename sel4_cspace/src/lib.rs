@@ -166,10 +166,6 @@ mod tests {
         cte_swap(&cap1, &mut cte2, &cap2, &mut cte4);
         assert_eq!(cte2.cap.get_cap_type(), CapTag::CapDomainCap);
         assert_eq!(cte4.cap.get_cap_type(), CapTag::CapASIDControlCap);
-        println!(
-            "{} {}",
-            &mut cte1 as *mut cte_t as usize, &mut cte2 as *mut cte_t as usize
-        );
         assert_eq!(cte4.cteMDBNode.get_prev(), &mut cte1 as *mut cte_t as usize);
         assert_eq!(cte1.cteMDBNode.get_next(), &mut cte4 as *mut cte_t as usize);
         assert_eq!(cte2.cteMDBNode.get_prev(), &mut cte3 as *mut cte_t as usize);
@@ -238,8 +234,8 @@ mod tests {
             &cap3,
         );
         let res_ret = resolve_address_bits(&cap1, cap_ptr, 10);
-        let ret_cap = unsafe{(*(res_ret.slot)).cap};
-        assert_eq!(ret_cap.get_cap_type(),CapTag::CapDomainCap);
+        let ret_cap = unsafe { (*(res_ret.slot)).cap };
+        assert_eq!(ret_cap.get_cap_type(), CapTag::CapDomainCap);
         println!("Test resolve_address_bits_test passed");
     }
 

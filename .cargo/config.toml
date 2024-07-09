@@ -7,7 +7,7 @@
 [build]
 # target = "riscv64imac-unknown-none-elf"
 # target = "riscv64imac-sel4"
- target = "aarch64-unknown-none-softfloat"
+target = "aarch64-unknown-none-softfloat"
 
 [unstable]
 unstable-options = true

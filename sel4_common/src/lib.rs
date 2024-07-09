@@ -31,13 +31,13 @@ pub mod vm_rights;
 /// // call with arguments
 /// // Format is fname(arg_name:type => value) -> ret_type
 /// ffi_call!(handleUnknownSyscall, a1:usize => 1);
-/// 
+///
 /// ffi_call!(some_function);
-/// 
+///
 /// ffi_call!(another_function -> i32);
-/// 
+///
 /// ffi_call!(multi_arg_function(a: i32 => 1, b: f64 => 3.14));
-/// 
+///
 /// ffi_call!(multi_arg_function_with_return(a: i32 => 1, b: f64 => 3.14) -> i64);
 /// ```
 pub macro ffi_call {

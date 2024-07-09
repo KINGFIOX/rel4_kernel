@@ -1,4 +1,7 @@
-use core::{intrinsics::unlikely, ops::{Deref, DerefMut}};
+use core::{
+    intrinsics::unlikely,
+    ops::{Deref, DerefMut},
+};
 
 use super::{
     machine::*,
@@ -14,7 +17,6 @@ use sel4_common::{
 use sel4_cspace::interface::{cap_t, CapTag};
 
 use super::utils::{kpptr_to_paddr, GET_KPT_INDEX};
-
 
 pub const PageAlignedLen: usize = BIT!(PT_INDEX_BITS);
 #[repr(align(4096))]
@@ -55,7 +57,7 @@ pub(crate) static mut armKSGlobalKernelPUD: PageAligned<pte_t> = PageAligned::ne
 //     [[pte_t(0); BIT!(PT_INDEX_BITS)]; BIT!(PT_INDEX_BITS)];
 #[no_mangle]
 #[link_section = ".page_table"]
-pub(crate) static mut armKSGlobalKernelPDs: PageAligned<PageAligned<pte_t>> = 
+pub(crate) static mut armKSGlobalKernelPDs: PageAligned<PageAligned<pte_t>> =
     PageAligned::new(PageAligned::new(pte_t(0)));
 
 #[no_mangle]
