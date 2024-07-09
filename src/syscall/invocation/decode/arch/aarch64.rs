@@ -2,7 +2,6 @@ use crate::config::USER_TOP;
 use crate::kernel::boot::get_extra_cap_by_index;
 use crate::syscall::get_currenct_thread;
 use crate::syscall::invocation::decode::current_syscall_error;
-use crate::syscall::invocation::invoke_mmu_op::invoke_page_table_unmap;
 use crate::syscall::ThreadState;
 use crate::syscall::{current_lookup_fault, get_syscall_arg, set_thread_state, unlikely};
 use log::debug;
@@ -21,7 +20,10 @@ use sel4_common::{
 use sel4_cspace::interface::{cap_t, cte_t, CapTag};
 use sel4_vspace::{find_vspace_for_asid, pte_t};
 
-use crate::syscall::invocation::invoke_mmu_op::invoke_page_table_map;
+use crate::syscall::invocation::invoke_mmu_op::{
+    invoke_asid_control, invoke_asid_pool, invoke_page_get_address, invoke_page_map,
+    invoke_page_table_map, invoke_page_table_unmap, invoke_page_unmap,
+};
 use crate::{
     config::maxIRQ,
     interrupt::is_irq_active,
@@ -82,8 +84,28 @@ fn decode_frame_invocation(
     call: bool,
     buffer: Option<&seL4_IPCBuffer>,
 ) -> exception_t {
-    todo!();
-    exception_t::EXCEPTION_NONE
+    match label {
+        MessageLabel::ARMPageMap => exception_t::EXCEPTION_NONE,
+        MessageLabel::ARMPageUnmap => {
+            set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
+            invoke_page_unmap(frame_slot)
+        }
+        MessageLabel::ARMPageClean_Data
+        | MessageLabel::ARMPageInvalidate_Data
+        | MessageLabel::ARMPageCleanInvalidate_Data
+        | MessageLabel::ARMPageUnify_Instruction => exception_t::EXCEPTION_NONE,
+        MessageLabel::ARMPageGetAddress => {
+            set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
+            invoke_page_get_address(frame_slot.cap.get_frame_base_ptr(), call)
+        }
+        _ => {
+            debug!("invalid operation label:{:?}", label);
+            unsafe {
+                current_syscall_error._type = seL4_IllegalOperation;
+            }
+            exception_t::EXCEPTION_SYSCALL_ERROR
+        }
+    }
 }
 
 fn decode_asid_control(
