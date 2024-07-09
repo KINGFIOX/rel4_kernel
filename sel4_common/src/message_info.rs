@@ -20,51 +20,7 @@
 use super::sel4_config::seL4_MsgMaxLength;
 use crate::plus_define_bitfield;
 
-#[derive(Eq, PartialEq, Debug, Clone, Copy, PartialOrd, Ord)]
-/// The label of a message.
-pub enum MessageLabel {
-    InvalidInvocation = 0,
-    UntypedRetype,
-    TCBReadRegisters,
-    TCBWriteRegisters,
-    TCBCopyRegisters,
-    TCBConfigure,
-    TCBSetPriority,
-    TCBSetMCPriority,
-    TCBSetSchedParams,
-    TCBSetIPCBuffer,
-    TCBSetSpace,
-    TCBSuspend,
-    TCBResume,
-    TCBBindNotification,
-    TCBUnbindNotification,
-    #[cfg(feature = "ENABLE_SMP")]
-    TCBSetAffinity,
-    TCBSetTLSBase,
-    CNodeRevoke,
-    CNodeDelete,
-    CNodeCancelBadgedSends,
-    CNodeCopy,
-    CNodeMint,
-    CNodeMove,
-    CNodeMutate,
-    CNodeRotate,
-    CNodeSaveCaller,
-    IRQIssueIRQHandler,
-    IRQAckIRQ,
-    IRQSetIRQHandler,
-    IRQClearIRQHandler,
-    DomainSetSet,
-    RISCVPageTableMap,
-    RISCVPageTableUnmap,
-    RISCVPageMap,
-    RISCVPageUnmap,
-    RISCVPageGetAddress,
-    RISCVASIDControlMakePool,
-    RISCVASIDPoolAssign,
-    RISCVIRQIssueIRQHandlerTrigger,
-    nArchInvocationLabels,
-}
+use crate::arch::MessageLabel;
 
 plus_define_bitfield! {
     seL4_MessageInfo_t, 1, 0, 0, 0 => {

@@ -5,9 +5,9 @@ use core::ops::Range;
 #[cfg(target_arch = "riscv64")]
 pub use riscv64::*;
 
-#[cfg(target_arch = "aarch64")]
+#[cfg(any(target_arch = "aarch64", test))]
 mod aarch64;
-#[cfg(target_arch = "aarch64")]
+#[cfg(any(target_arch = "aarch64", test))]
 pub use aarch64::*;
 
 /// ArchTCB Common part

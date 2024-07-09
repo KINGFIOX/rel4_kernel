@@ -2,6 +2,7 @@ use bitflags::bitflags;
 use core::intrinsics::unlikely;
 
 use sel4_common::{
+    arch::{vm_rights_t, RISCVGetReadFromVMRights, RISCVGetWriteFromVMRights},
     sel4_config::{seL4_PageBits, seL4_PageTableBits, CONFIG_PT_LEVELS},
     structures::exception_t,
     utils::{convert_to_mut_type_ref, convert_to_type_ref},
@@ -13,10 +14,7 @@ use crate::{
     asid_t, find_vspace_for_asid, pte_t, vptr_t,
 };
 
-use super::{
-    paddr_to_pptr,
-    vm_rights::{vm_rights_t, RISCVGetReadFromVMRights, RISCVGetWriteFromVMRights},
-};
+use super::paddr_to_pptr;
 
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

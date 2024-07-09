@@ -1,8 +1,14 @@
 #![allow(unused)]
 mod arch_tcb;
+mod message_info;
+mod object;
 mod registers;
+mod vm_rights;
 pub use arch_tcb::ArchTCB;
+pub use message_info::*;
+pub use object::*;
 pub use registers::*;
+pub use vm_rights::*;
 
 pub const PSCI_0_2_FN_BASE: u32 = 0x84000000;
 pub const PSCI_0_2_64BIT: u32 = 0x40000000;

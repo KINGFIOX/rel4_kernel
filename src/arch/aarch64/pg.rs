@@ -1,4 +1,7 @@
+use crate::syscall::invocation::decode::arch::decode_mmu_invocation::decode_mmu_invocation;
+use sel4_common::arch::MessageLabel;
 use sel4_common::structures::exception_t;
+use sel4_common::structures::seL4_IPCBuffer;
 use sel4_cspace::interface::{cap_t, cte_t};
 use sel4_vspace::{pte_t, vptr_t};
 
@@ -38,13 +41,14 @@ extern "C" fn lookupPUDSlot(vspace: *mut pte_t, vptr: vptr_t) -> lookupPUDSlot_r
 #[no_mangle]
 // typedef word_t cptr_t;
 extern "C" fn decodeARMMMUInvocation(
-    invLabel: usize,
+    invLabel: MessageLabel,
     length: usize,
     cptr: usize,
-    cte: *mut cte_t,
+    cte: &mut cte_t,
     cap: cap_t,
     call: bool,
-    buffer: *mut usize,
+    buffer: Option<&seL4_IPCBuffer>,
 ) -> exception_t {
-    todo!("decodeARMMMUInvocation")
+    // todo!("decodeARMMMUInvocation")
+    decode_mmu_invocation(invLabel, length, cte, call, buffer)
 }

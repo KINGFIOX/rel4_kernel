@@ -3,23 +3,15 @@
 //! It provides methods to retrieve the size of an object, the frame type of an object,
 //! convert a usize value to an `ObjectType`, and check if an object type is architecture-specific.
 
+use crate::arch::ObjectType;
+
 use super::sel4_config::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-/// Represents the type of an object.
-pub enum ObjectType {
-    UnytpedObject = 0,
-    TCBObject = 1,
-    EndpointObject = 2,
-    NotificationObject = 3,
-    CapTableObject = 4,
-    GigaPageObject = 5,
-    NormalPageObject = 6,
-    MegaPageObject = 7,
-    PageTableObject = 8,
-}
-
+#[cfg(target_arch = "riscv64")]
 pub const seL4_ObjectTypeCount: usize = ObjectType::PageTableObject as usize + 1;
+#[cfg(any(target_arch = "aarch64", test))]
+pub const seL4_ObjectTypeCount: usize = ObjectType::seL4_ARM_PageDirectoryObject as usize;
+pub const seL4_NonArchObjectTypeCount: usize = ObjectType::CapTableObject as usize + 1;
 
 impl ObjectType {
     /// Returns the size of the object based on its type.
@@ -32,34 +24,19 @@ impl ObjectType {
     ///
     /// The size of the object.
     pub fn get_object_size(&self, user_object_size: usize) -> usize {
+        if (*self) as usize >= seL4_NonArchObjectTypeCount {
+            return self.arch_get_object_size();
+        }
         match self {
             ObjectType::UnytpedObject => user_object_size,
             ObjectType::TCBObject => seL4_TCBBits,
             ObjectType::EndpointObject => seL4_EndpointBits,
             ObjectType::NotificationObject => seL4_NotificationBits,
             ObjectType::CapTableObject => seL4_SlotBits + user_object_size,
-            ObjectType::GigaPageObject => seL4_HugePageBits,
-            ObjectType::NormalPageObject => seL4_PageBits,
-            ObjectType::MegaPageObject => seL4_LargePageBits,
-            ObjectType::PageTableObject => seL4_PageBits,
+            _ => panic!("unsupported cap type:{}", (*self) as usize),
         }
     }
 
-    /// Returns the frame type of the object.
-    ///
-    /// # Returns
-    ///
-    /// The frame type of the object.
-    pub fn get_frame_type(&self) -> usize {
-        match self {
-            ObjectType::NormalPageObject => RISCV_4K_Page,
-            ObjectType::MegaPageObject => RISCV_Mega_Page,
-            ObjectType::GigaPageObject => RISCV_Giga_Page,
-            _ => {
-                panic!("Invalid frame type: {:?}", self);
-            }
-        }
-    }
 
     /// Converts a usize value to an ObjectType.
     ///
@@ -75,17 +52,5 @@ impl ObjectType {
             return None;
         }
         unsafe { Some(core::mem::transmute::<u8, ObjectType>(value as u8)) }
-    }
-
-    /// Checks if the object type is an architecture-specific type.
-    ///
-    /// # Returns
-    ///
-    /// true if the object type is an architecture-specific type, false otherwise.
-    pub fn is_arch_type(self) -> bool {
-        match self {
-            Self::GigaPageObject | Self::NormalPageObject | Self::MegaPageObject => true,
-            _ => false,
-        }
     }
 }

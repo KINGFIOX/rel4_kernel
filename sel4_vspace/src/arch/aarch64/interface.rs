@@ -1,16 +1,15 @@
 use core::{intrinsics::unlikely, ops::{Deref, DerefMut}};
 
 use super::{
-    machine::{setCurrentUserVSpaceRoot, ttbr_new},
-    pte::PTEFlags,
+    machine::*,
+    pte::{self, PTEFlags},
 };
-use crate::{find_vspace_for_asid, pptr_to_paddr, pte_t};
+use crate::{asid_t, find_vspace_for_asid, pptr_t, pptr_to_paddr, pte_t, vptr_t};
 use sel4_common::{
-    fault::lookup_fault_t,
-    sel4_config::{seL4_LargePageBits, PADDR_BASE, PADDR_TOP, PPTR_BASE, PPTR_TOP, PT_INDEX_BITS},
-    structures::exception_t,
-    utils::convert_to_mut_type_ref,
-    BIT,
+    arch::{maskVMRights, vm_rights_t}, fault::lookup_fault_t, sel4_config::{
+        asidInvalid, seL4_LargePageBits, ARM_Large_Page, ARM_Small_Page, PADDR_BASE, PADDR_TOP,
+        PPTR_BASE, PPTR_TOP, PT_INDEX_BITS,
+    }, structures::exception_t, utils::convert_to_mut_type_ref, BIT
 };
 use sel4_cspace::interface::{cap_t, CapTag};
 
@@ -147,4 +146,43 @@ pub fn set_vm_root(vspace_root: &cap_t) -> Result<(), lookup_fault_t> {
 
 pub fn activate_kernel_window() {
     todo!()
+}
+
+pub fn unmap_page_table(asid: asid_t, vaddr: vptr_t, pt: &mut pte_t) {
+    pt.unmap_page_table(asid, vaddr);
+}
+
+#[no_mangle]
+#[link_section = ".boot.text"]
+pub fn create_unmapped_it_frame_cap(pptr: pptr_t, use_large: bool) -> cap_t {
+    return create_it_frame_cap(pptr, 0, asidInvalid, use_large);
+}
+
+#[no_mangle]
+#[link_section = ".boot.text"]
+pub fn create_it_frame_cap(pptr: pptr_t, vptr: vptr_t, asid: asid_t, use_large: bool) -> cap_t {
+    let mut frame_size = ARM_Small_Page;
+    if use_large {
+        frame_size = ARM_Large_Page;
+    }
+    cap_t::new_frame_cap(
+        0,
+        vm_rights_t::VMReadWrite as usize,
+        vptr,
+        frame_size,
+        asid,
+        pptr,
+    )
+}
+
+#[no_mangle]
+#[link_section = ".boot.text"]
+pub fn activate_kernel_vspace() {
+    unsafe {
+        clean_invalidate_l1_caches();
+        setCurrentKernelVSpaceRoot(ttbr_new(0, kpptr_to_paddr(armKSGlobalKernelPGD.as_ptr() as usize)));
+        setCurrentUserVSpaceRoot(ttbr_new(0, kpptr_to_paddr(armKSGlobalUserVSpace.as_ptr() as usize)));
+        invalidate_local_tlb();
+        /* A53 hardware does not support TLB locking */
+    }
 }

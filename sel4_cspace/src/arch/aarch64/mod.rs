@@ -1,4 +1,9 @@
-use sel4_common::plus_define_bitfield;
+use sel4_common::{
+    arch::maskVMRights, cap_rights::seL4_CapRights_t, plus_define_bitfield,
+    structures::exception_t, utils::pageBitsForSize, vm_rights::vm_rights_from_word, MASK,
+};
+
+use crate::cte::{cte_t, deriveCap_ret};
 
 /// Cap 在内核态中的种类枚举
 #[derive(Eq, PartialEq, Debug)]
@@ -107,4 +112,146 @@ plus_define_bitfield! {
             capASIDPool, get_asid_pool, set_asid_pool, 0, 0, 37, 2, true
         }
     }
+}
+
+impl cte_t {
+    pub fn arch_derive_cap(&mut self, cap: &cap_t) -> deriveCap_ret {
+        let mut ret = deriveCap_ret {
+            status: exception_t::EXCEPTION_NONE,
+            cap: cap_t::default(),
+        };
+        match cap.get_cap_type() {
+            CapTag::CapPageGlobalDirectoryCap => {
+                if cap.get_pgd_is_mapped() != 0 {
+                    ret.cap = cap.clone();
+                    ret.status = exception_t::EXCEPTION_NONE;
+                } else {
+                    ret.cap = cap_t::new_null_cap();
+                    ret.status = exception_t::EXCEPTION_SYSCALL_ERROR;
+                }
+            }
+            CapTag::CapPageUpperDirectoryCap => {
+                if cap.get_pud_is_mapped() != 0 {
+                    ret.cap = cap.clone();
+                    ret.status = exception_t::EXCEPTION_NONE;
+                } else {
+                    ret.cap = cap_t::new_null_cap();
+                    ret.status = exception_t::EXCEPTION_SYSCALL_ERROR;
+                }
+            }
+            CapTag::CapPageDirectoryCap => {
+                if cap.get_pud_is_mapped() != 0 {
+                    ret.cap = cap.clone();
+                    ret.status = exception_t::EXCEPTION_NONE;
+                } else {
+                    ret.cap = cap_t::new_null_cap();
+                    ret.status = exception_t::EXCEPTION_SYSCALL_ERROR;
+                }
+            }
+            CapTag::CapPageTableCap => {
+                if cap.get_pud_is_mapped() != 0 {
+                    ret.cap = cap.clone();
+                    ret.status = exception_t::EXCEPTION_NONE;
+                } else {
+                    ret.cap = cap_t::new_null_cap();
+                    ret.status = exception_t::EXCEPTION_SYSCALL_ERROR;
+                }
+            }
+            CapTag::CapFrameCap => {
+                let mut newCap = cap.clone();
+                newCap.set_frame_mapped_asid(0);
+                ret.cap = newCap;
+            }
+            CapTag::CapASIDControlCap | CapTag::CapASIDPoolCap => {
+                ret.cap = cap.clone();
+            }
+            _ => {
+                panic!(" Invalid arch cap type : {}", cap.get_cap_type() as usize);
+            }
+        }
+        ret
+    }
+}
+
+pub fn arch_mask_cap_rights(rights: seL4_CapRights_t, cap: &cap_t) -> cap_t {
+    if cap.get_cap_type() == CapTag::CapFrameCap {
+        let mut vm_rights = vm_rights_from_word(cap.get_frame_vm_rights());
+        vm_rights = maskVMRights(vm_rights, rights);
+        let mut new_cap = cap.clone();
+        new_cap.set_frame_vm_rights(vm_rights as usize);
+        return new_cap;
+    } else {
+        cap.clone()
+    }
+}
+
+// pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret {
+//     match cap.get_cap_type() {
+//         CapTag::CapASIDPoolCap => {
+//             if final_ {
+//                 let asid = cap.get_asid_base();
+//                 deleteASID()
+//             }
+//         }
+//         _ => panic!(),
+//     }
+//     finaliseCap_ret {
+//         remainder: cap_t::new_null_cap(),
+//         cleanupInfo: cap_t::new_null_cap(),
+//     }
+// }
+
+pub fn arch_same_region_as(cap1: &cap_t, cap2: &cap_t) -> bool {
+    match cap1.get_cap_type() {
+        CapTag::CapFrameCap => {
+            if cap2.get_cap_type() == CapTag::CapFrameCap {
+                let botA = cap1.get_frame_base_ptr();
+                let botB = cap2.get_frame_base_ptr();
+                let topA = botA + MASK!(pageBitsForSize(cap1.get_frame_size()));
+                let topB = botB + MASK!(pageBitsForSize(cap2.get_frame_size()));
+                return (botA <= botB) && (topA >= topB) && (botB <= topB);
+            }
+        }
+        CapTag::CapPageTableCap => {
+            if cap2.get_cap_type() == CapTag::CapPageTableCap {
+                return cap1.get_pt_base_ptr() == cap2.get_pt_base_ptr();
+            }
+        }
+        CapTag::CapPageDirectoryCap => {
+            if cap2.get_cap_type() == CapTag::CapPageDirectoryCap {
+                return cap1.get_pd_base_ptr() == cap2.get_pd_base_ptr();
+            }
+        }
+        CapTag::CapPageUpperDirectoryCap => {
+            if cap2.get_cap_type() == CapTag::CapPageUpperDirectoryCap {
+                return cap1.get_pud_base_ptr() == cap2.get_pud_base_ptr();
+            }
+        }
+        CapTag::CapPageGlobalDirectoryCap => {
+            if cap2.get_cap_type() == CapTag::CapPageUpperDirectoryCap {
+                return cap1.get_pgd_base_ptr() == cap2.get_pgd_base_ptr();
+            }
+        }
+        CapTag::CapASIDControlCap => {
+            return cap2.get_cap_type() == CapTag::CapASIDControlCap;
+        }
+        CapTag::CapASIDPoolCap => {
+            if cap2.get_cap_type() == CapTag::CapASIDPoolCap {
+                return cap1.get_asid_pool() == cap2.get_asid_pool();
+            }
+        }
+        _ => panic!("unknown cap"),
+    }
+    false
+}
+
+pub fn arch_same_object_as(cap1: &cap_t, cap2: &cap_t) -> bool {
+    if cap1.get_cap_type() == CapTag::CapFrameCap {
+        if cap2.get_cap_type() == CapTag::CapFrameCap {
+            return cap1.get_frame_base_ptr() == cap2.get_frame_base_ptr()
+                && cap1.get_frame_size() == cap2.get_frame_size()
+                && cap1.get_frame_is_device() == cap2.get_frame_is_device();
+        }
+    }
+    arch_same_region_as(cap1, cap2)
 }

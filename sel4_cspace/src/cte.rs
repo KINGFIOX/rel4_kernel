@@ -74,36 +74,7 @@ impl cte_t {
         ret
     }
 
-    fn arch_derive_cap(&mut self, cap: &cap_t) -> deriveCap_ret {
-        let mut ret = deriveCap_ret {
-            status: exception_t::EXCEPTION_NONE,
-            cap: cap_t::default(),
-        };
-        match cap.get_cap_type() {
-            CapTag::CapPageTableCap => {
-                if cap.get_pt_is_mapped() != 0 {
-                    ret.cap = cap.clone();
-                    ret.status = exception_t::EXCEPTION_NONE;
-                } else {
-                    ret.cap = cap_t::new_null_cap();
-                    ret.status = exception_t::EXCEPTION_SYSCALL_ERROR;
-                }
-            }
-            CapTag::CapFrameCap => {
-                let mut newCap = cap.clone();
-                newCap.set_frame_mapped_address(0);
-                newCap.set_frame_mapped_asid(0);
-                ret.cap = newCap;
-            }
-            CapTag::CapASIDControlCap | CapTag::CapASIDPoolCap => {
-                ret.cap = cap.clone();
-            }
-            _ => {
-                panic!(" Invalid arch cap type : {}", cap.get_cap_type() as usize);
-            }
-        }
-        ret
-    }
+    
 
     pub fn ensure_no_children(&self) -> exception_t {
         if self.cteMDBNode.get_next() != 0 {

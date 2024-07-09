@@ -1,4 +1,4 @@
-use sel4_cspace::interface::seL4_CapRights_t;
+use crate::cap_rights::seL4_CapRights_t;
 
 #[repr(usize)]
 #[derive(PartialEq, Eq)]

@@ -1,4 +1,5 @@
-use sel4_common::arch::ArchReg;
+use sel4_common::arch::{maskVMRights, ArchReg};
+use sel4_common::cap_rights::seL4_CapRights_t;
 use sel4_common::utils::MAX_FREE_INDEX;
 use sel4_common::MASK;
 use sel4_common::{
@@ -7,11 +8,10 @@ use sel4_common::{
     structures::exception_t,
     utils::{convert_to_mut_type_ref, pageBitsForSize},
 };
-use sel4_cspace::interface::{cap_t, cte_insert, cte_t, seL4_CapRights_t};
+use sel4_cspace::interface::{cap_t, cte_insert, cte_t};
 use sel4_task::{get_currenct_thread, set_thread_state, ThreadState};
 use sel4_vspace::{
-    asid_pool_t, maskVMRights, pptr_t, pptr_to_paddr, pte_t, set_asid_pool_by_index, unmapPage,
-    vm_attributes_t,
+    asid_pool_t, pptr_t, pptr_to_paddr, pte_t, set_asid_pool_by_index, unmapPage, vm_attributes_t,
 };
 #[cfg(target_arch = "riscv64")]
 use sel4_vspace::{copyGlobalMappings, sfence, PTEFlags};

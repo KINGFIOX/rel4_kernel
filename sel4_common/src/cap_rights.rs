@@ -1,4 +1,4 @@
-use sel4_common::plus_define_bitfield;
+use crate::plus_define_bitfield;
 
 plus_define_bitfield! {
     seL4_CapRights_t, 1, 0, 0, 0 => {

@@ -1,13 +1,11 @@
 use core::intrinsics::unlikely;
 
 use crate::{
-    arch::aarch64::{
-        machine::{clean_by_va_pou, invalidate_local_tlb_asid},
-        vm_rights::vm_rights_t,
-    },
+    arch::aarch64::machine::{clean_by_va_pou, invalidate_local_tlb_asid},
     asid_t, find_vspace_for_asid, pptr_to_paddr, pte_t, vm_attributes_t, vptr_t,
 };
 use sel4_common::{
+    arch::vm_rights_t,
     sel4_config::seL4_PageTableBits,
     structures::exception_t,
     utils::{convert_ref_type_to_usize, convert_to_mut_type_ref},

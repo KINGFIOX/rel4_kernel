@@ -7,7 +7,8 @@ use crate::{
     BIT, IS_ALIGNED, MASK,
 };
 use log::debug;
-use sel4_common::arch::{msgRegisterNum, ArchReg};
+use sel4_common::arch::{maskVMRights, msgRegisterNum, ArchReg};
+use sel4_common::cap_rights::seL4_CapRights_t;
 use sel4_common::fault::*;
 use sel4_common::sel4_config::seL4_MinUntypedBits;
 use sel4_common::{
@@ -20,10 +21,10 @@ use sel4_common::{
     },
     utils::convert_to_mut_type_ref,
 };
-use sel4_cspace::interface::{cap_t, cte_t, resolve_address_bits, seL4_CapRights_t, CapTag};
+use sel4_cspace::arch::arch_mask_cap_rights;
+use sel4_cspace::interface::{cap_t, cte_t, resolve_address_bits, CapTag};
 use sel4_ipc::notification_t;
 use sel4_task::{get_currenct_thread, lookupSlot_ret_t, tcb_t};
-use sel4_vspace::maskVMRights;
 
 pub fn alignUp(baseValue: usize, alignment: usize) -> usize {
     (baseValue + BIT!(alignment) - 1) & !MASK!(alignment)
@@ -230,6 +231,9 @@ pub fn ensureEmptySlot(slot: *mut cte_t) -> exception_t {
 }
 
 pub fn mask_cap_rights(rights: seL4_CapRights_t, cap: &cap_t) -> cap_t {
+    if cap.isArchCap() {
+        return arch_mask_cap_rights(rights, cap);
+    }
     let mut new_cap = cap.clone();
     match cap.get_cap_type() {
         CapTag::CapEndpointCap => {

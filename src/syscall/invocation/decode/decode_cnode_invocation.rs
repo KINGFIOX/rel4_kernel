@@ -1,14 +1,15 @@
 use log::debug;
+use sel4_common::cap_rights::seL4_CapRights_t;
 use sel4_common::fault::lookup_fault_t;
 use sel4_common::{
-    message_info::MessageLabel,
+    arch::MessageLabel,
     sel4_config::{
         seL4_DeleteFirst, seL4_FailedLookup, seL4_IllegalOperation, seL4_TruncatedMessage,
     },
     structures::{exception_t, seL4_IPCBuffer},
     utils::convert_to_mut_type_ref,
 };
-use sel4_cspace::interface::{cap_t, cte_t, seL4_CapRights_t, CapTag};
+use sel4_cspace::interface::{cap_t, cte_t, CapTag};
 
 use crate::{
     kernel::boot::{current_lookup_fault, current_syscall_error, get_extra_cap_by_index},
