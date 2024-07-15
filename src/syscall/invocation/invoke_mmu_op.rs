@@ -13,17 +13,19 @@ use sel4_common::{
 use sel4_cspace::interface::{cap_t, cte_insert, cte_t};
 use sel4_task::{get_currenct_thread, set_thread_state, ThreadState};
 use sel4_vspace::{
-    asid_pool_t, pptr_t, pptr_to_paddr, pte_t, set_asid_pool_by_index, unmapPage, vm_attributes_t,
+    asid_pool_t, pptr_t, pptr_to_paddr, PTE, set_asid_pool_by_index, unmapPage, vm_attributes_t,
     PTEFlags,
 };
 #[cfg(target_arch = "riscv64")]
 use sel4_vspace::{copyGlobalMappings, sfence};
+#[cfg(target_arch = "aarch64")]
+use sel4_vspace::{PDE,PUDE,PGDE};
 
 use crate::{kernel::boot::current_lookup_fault, utils::clear_memory};
 
 pub fn invoke_page_table_unmap(cap: &mut cap_t) -> exception_t {
     if cap.get_pt_is_mapped() != 0 {
-        let pt = convert_to_mut_type_ref::<pte_t>(cap.get_pt_base_ptr());
+        let pt = convert_to_mut_type_ref::<PTE>(cap.get_pt_base_ptr());
         pt.unmap_page_table(cap.get_pt_mapped_asid(), cap.get_pt_mapped_address());
         clear_memory(pt.get_ptr() as *mut u8, seL4_PageTableBits)
     }
@@ -33,19 +35,19 @@ pub fn invoke_page_table_unmap(cap: &mut cap_t) -> exception_t {
 
 pub fn invoke_page_table_map(
     pt_cap: &mut cap_t,
-    pt_slot: &mut pte_t,
+    pt_slot: &mut PTE,
     asid: usize,
     vaddr: usize,
 ) -> exception_t {
     let paddr = pptr_to_paddr(pt_cap.get_pt_base_ptr());
     #[cfg(target_arch = "riscv64")]
     {
-        let pte = pte_t::new(paddr >> seL4_PageBits, PTEFlags::V);
+        let pte = PTE::new(paddr >> seL4_PageBits, PTEFlags::V);
         *pt_slot = pte;
     }
     #[cfg(target_arch = "aarch64")]
     {
-        let pde = pte_t::new(paddr >> seL4_PageBits, PTEFlags::VALID);
+        let pde = PTE::new(paddr >> seL4_PageBits, PTEFlags::VALID);
         *pt_slot = pde;
     }
     pt_cap.set_pt_is_mapped(1);
@@ -102,7 +104,7 @@ pub fn invoke_page_map(
     vaddr: usize,
     asid: usize,
     attr: vm_attributes_t,
-    pt_slot: &mut pte_t,
+    pt_slot: &mut PTE,
     frame_slot: &mut cte_t,
 ) -> exception_t {
     let frame_vm_rights = unsafe { core::mem::transmute(frame_slot.cap.get_frame_vm_rights()) };
@@ -113,9 +115,9 @@ pub fn invoke_page_map(
     #[cfg(target_arch = "riscv64")]
     let executable = attr.get_execute_never() == 0;
     #[cfg(target_arch = "riscv64")]
-    let pte = pte_t::make_user_pte(frame_addr, executable, vm_rights);
+    let pte = PTE::make_user_pte(frame_addr, executable, vm_rights);
     #[cfg(target_arch = "aarch64")]
-    let pte = pte_t::make_user_pte(frame_addr, vm_rights, attr, frame_slot.cap.get_frame_size());
+    let pte = PTE::make_user_pte(frame_addr, vm_rights, attr, frame_slot.cap.get_frame_size());
     set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
     pt_slot.update(pte);
     exception_t::EXCEPTION_NONE
@@ -124,8 +126,10 @@ pub fn invoke_page_map(
 pub fn invoke_huge_page_map(
     asid: usize,
     frame_slot: &mut cte_t,
-    pudSlot: &mut pte_t,
+    pudSlot: &mut PUDE,
 ) -> exception_t {
+    use sel4_vspace::PUDE;
+
     exception_t::EXCEPTION_NONE
 }
 
@@ -133,7 +137,7 @@ pub fn invoke_huge_page_map(
 pub fn invoke_large_page_map(
     asid: usize,
     frame_slot: &mut cte_t,
-    pdSlot: &mut pte_t,
+    pdSlot: &mut PDE,
 ) -> exception_t {
     exception_t::EXCEPTION_NONE
 }
@@ -142,7 +146,7 @@ pub fn invoke_large_page_map(
 pub fn invoke_small_page_map(
     asid: usize,
     frame_slot: &mut cte_t,
-    pdSlot: &mut pte_t,
+    ptSlot: &mut PTE,
 ) -> exception_t {
     exception_t::EXCEPTION_NONE
 }

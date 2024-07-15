@@ -22,7 +22,7 @@ use sel4_common::{
     MASK,
 };
 use sel4_cspace::interface::{cap_t, cte_t, CapTag};
-use sel4_vspace::{checkVPAlignment, find_vspace_for_asid, pptr_to_paddr, pte_t, vm_attributes_t};
+use sel4_vspace::{checkVPAlignment, find_vspace_for_asid, pptr_to_paddr, vm_attributes_t, PDE, PGDE, PTE, PUDE};
 
 use crate::syscall::invocation::invoke_mmu_op::{
     invoke_asid_control, invoke_asid_pool, invoke_huge_page_map, invoke_large_page_map,
@@ -196,7 +196,7 @@ fn decode_frame_map(
                 return exception_t::EXCEPTION_SYSCALL_ERROR;
             }
             set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
-            let ptSlot = convert_to_mut_type_ref::<pte_t>(lu_ret.ptSlot as usize);
+            let ptSlot = convert_to_mut_type_ref::<PTE>(lu_ret.ptSlot as usize);
             invoke_small_page_map(asid, frame_slot, ptSlot)
         } else if frame_size == ARM_Large_Page {
             let lu_ret = lvl1pt.lookup_pd_slot(vaddr);
@@ -208,7 +208,7 @@ fn decode_frame_map(
                 return exception_t::EXCEPTION_SYSCALL_ERROR;
             }
             set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
-            let pdSlot = convert_to_mut_type_ref::<pte_t>(lu_ret.pdSlot as usize);
+            let pdSlot = convert_to_mut_type_ref::<PDE>(lu_ret.pdSlot as usize);
             invoke_large_page_map(asid, frame_slot, pdSlot)
         } else if frame_size == ARM_Huge_Page {
             let lu_ret = lvl1pt.lookup_pud_slot(vaddr);
@@ -220,8 +220,8 @@ fn decode_frame_map(
                 return exception_t::EXCEPTION_SYSCALL_ERROR;
             }
             set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
-            let pudSlot = convert_to_mut_type_ref::<pte_t>(lu_ret.pudSlot as usize);
-            invoke_large_page_map(asid, frame_slot, pudSlot)
+            let pudSlot = convert_to_mut_type_ref::<PUDE>(lu_ret.pudSlot as usize);
+            invoke_huge_page_map(asid, frame_slot, pudSlot)
         } else {
             return exception_t::EXCEPTION_SYSCALL_ERROR;
         }
@@ -294,7 +294,7 @@ fn decode_page_table_map(
             }
             return exception_t::EXCEPTION_SYSCALL_ERROR;
         }
-        let pdSlot = convert_to_mut_type_ref::<pte_t>(pd_ret.pdSlot as usize);
+        let pdSlot = convert_to_mut_type_ref::<PTE>(pd_ret.pdSlot as usize);
         set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
         return invoke_page_table_map(cap, pdSlot, asid, vaddr & !MASK!(PD_INDEX_OFFSET));
     } else {
@@ -302,7 +302,7 @@ fn decode_page_table_map(
     }
 }
 
-fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut pte_t, usize)> {
+fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut PTE, usize)> {
     if lvl1pt_cap.get_cap_type() != CapTag::CapPageGlobalDirectoryCap
         || lvl1pt_cap.get_pt_is_mapped() == asidInvalid
     {
@@ -314,7 +314,7 @@ fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut pte_t, usize)> {
         return None;
     }
 
-    let lvl1pt = convert_to_mut_type_ref::<pte_t>(lvl1pt_cap.get_pt_base_ptr());
+    let lvl1pt = convert_to_mut_type_ref::<PTE>(lvl1pt_cap.get_pt_base_ptr());
     let asid = lvl1pt_cap.get_pt_mapped_asid();
 
     let find_ret = find_vspace_for_asid(asid);

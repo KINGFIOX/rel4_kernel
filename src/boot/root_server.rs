@@ -546,7 +546,7 @@ fn rust_create_frames_of_region(
                 true,
             );
         } else {
-            frame_cap = rust_create_unmapped_it_frame_cap(f, false);
+            frame_cap = create_unmapped_it_frame_cap(f, false);
         }
 
         if !provide_cap(root_cnode_cap, frame_cap) {
@@ -575,9 +575,6 @@ unsafe fn create_bi_frame_cap(root_cnode_cap: &cap_t, pd_cap: &cap_t, vptr: usiz
     write_slot(ptr.add(seL4_CapBootInfoFrame), cap);
 }
 
-fn rust_create_unmapped_it_frame_cap(pptr: pptr_t, _use_large: bool) -> cap_t {
-    cap_t::new_frame_cap(0, pptr, 0, 0, 0, 0)
-}
 
 unsafe fn rust_populate_bi_frame(
     node_id: usize,
