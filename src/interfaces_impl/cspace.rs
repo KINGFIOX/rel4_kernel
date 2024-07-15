@@ -11,7 +11,7 @@ use sel4_cspace::interface::{cap_t, finaliseCap_ret, CapTag};
 use sel4_ipc::{endpoint_t, notification_t, Transfer};
 use sel4_task::{get_currenct_thread, ksWorkUnitsCompleted, tcb_t};
 use sel4_vspace::{
-    asid_pool_t, asid_t, delete_asid, delete_asid_pool, find_vspace_for_asid, pte_t, unmapPage,
+    asid_pool_t, asid_t, delete_asid, delete_asid_pool, find_vspace_for_asid, PTE, unmapPage,
 };
 
 #[cfg(target_arch = "riscv64")]
@@ -41,9 +41,9 @@ pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret {
                 if find_ret.status == exception_t::EXCEPTION_NONE
                     && find_ret.vspace_root.unwrap() as usize == pte
                 {
-                    deleteASID(asid, pte as *mut pte_t);
+                    deleteASID(asid, pte as *mut PTE);
                 } else {
-                    convert_to_mut_type_ref::<pte_t>(pte)
+                    convert_to_mut_type_ref::<PTE>(pte)
                         .unmap_page_table(asid, cap.get_pt_mapped_address());
                 }
                 if let Some(lookup_fault) = find_ret.lookup_fault {
@@ -201,7 +201,7 @@ pub fn preemptionPoint() -> exception_t {
 }
 
 #[no_mangle]
-pub fn deleteASID(asid: asid_t, vspace: *mut pte_t) {
+pub fn deleteASID(asid: asid_t, vspace: *mut PTE) {
     unsafe {
         if let Err(lookup_fault) = delete_asid(
             asid,

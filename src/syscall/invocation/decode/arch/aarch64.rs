@@ -18,7 +18,7 @@ use sel4_common::{
     MASK,
 };
 use sel4_cspace::interface::{cap_t, cte_t, CapTag};
-use sel4_vspace::{find_vspace_for_asid, pte_t};
+use sel4_vspace::{find_vspace_for_asid, PTE};
 
 use crate::syscall::invocation::invoke_mmu_op::{
     invoke_asid_control, invoke_asid_pool, invoke_page_get_address, invoke_page_map,
@@ -186,7 +186,7 @@ fn decode_page_table_map(
             }
             return exception_t::EXCEPTION_SYSCALL_ERROR;
         }
-        let pdSlot = convert_to_mut_type_ref::<pte_t>(pd_ret.pdSlot as usize);
+        let pdSlot = convert_to_mut_type_ref::<PTE>(pd_ret.pdSlot as usize);
         set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
         return invoke_page_table_map(cap, pdSlot, asid, vaddr & !MASK!(PD_INDEX_OFFSET));
     } else {
@@ -194,7 +194,7 @@ fn decode_page_table_map(
     }
 }
 
-fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut pte_t, usize)> {
+fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut PTE, usize)> {
     if lvl1pt_cap.get_cap_type() != CapTag::CapPageTableCap
         || lvl1pt_cap.get_pt_is_mapped() == asidInvalid
     {
@@ -206,7 +206,7 @@ fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut pte_t, usize)> {
         return None;
     }
 
-    let lvl1pt = convert_to_mut_type_ref::<pte_t>(lvl1pt_cap.get_pt_base_ptr());
+    let lvl1pt = convert_to_mut_type_ref::<PTE>(lvl1pt_cap.get_pt_base_ptr());
     let asid = lvl1pt_cap.get_pt_mapped_asid();
 
     let find_ret = find_vspace_for_asid(asid);

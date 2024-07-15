@@ -19,7 +19,7 @@ use sel4_common::{BIT, MASK};
 use sel4_cspace::interface::{cap_t, cte_t, CapTag};
 use sel4_task::{get_currenct_thread, set_thread_state, ThreadState};
 use sel4_vspace::{
-    checkVPAlignment, find_vspace_for_asid, get_asid_pool_by_index, pte_t, vm_attributes_t,
+    checkVPAlignment, find_vspace_for_asid, get_asid_pool_by_index, PTE, vm_attributes_t,
 };
 
 use crate::{
@@ -295,7 +295,7 @@ fn decode_frame_map(
             return exception_t::EXCEPTION_SYSCALL_ERROR;
         }
 
-        let pt_slot = convert_to_mut_type_ref::<pte_t>(lu_ret.ptSlot as usize);
+        let pt_slot = convert_to_mut_type_ref::<PTE>(lu_ret.ptSlot as usize);
         let frame_asid = frame_slot.cap.get_frame_mapped_asid();
         if frame_asid != asidInvalid {
             if frame_asid != asid {
@@ -358,7 +358,7 @@ fn decode_page_table_unmap(pt_cte: &mut cte_t) -> exception_t {
     if cap.get_pt_is_mapped() != 0 {
         let asid = cap.get_pt_mapped_asid();
         let find_ret = find_vspace_for_asid(asid);
-        let pte_ptr = cap.get_pt_base_ptr() as *mut pte_t;
+        let pte_ptr = cap.get_pt_base_ptr() as *mut PTE;
         if find_ret.status == exception_t::EXCEPTION_NONE
             && find_ret.vspace_root.unwrap() == pte_ptr
         {
@@ -412,7 +412,7 @@ fn decode_page_table_map(
 
     if let Some((lvl1pt, asid)) = get_vspace(&lvl1pt_cap) {
         let lu_ret = lvl1pt.lookup_pt_slot(vaddr);
-        let lu_slot = convert_to_mut_type_ref::<pte_t>(lu_ret.ptSlot as usize);
+        let lu_slot = convert_to_mut_type_ref::<PTE>(lu_ret.ptSlot as usize);
         #[cfg(target_arch = "riscv64")]
         if lu_ret.ptBitsLeft == seL4_PageBits || lu_slot.get_valid() != 0 {
             debug!("RISCVPageTableMap: All objects mapped at this address");
@@ -428,7 +428,7 @@ fn decode_page_table_map(
     }
 }
 
-fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut pte_t, usize)> {
+fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut PTE, usize)> {
     if lvl1pt_cap.get_cap_type() != CapTag::CapPageTableCap
         || lvl1pt_cap.get_pt_is_mapped() == asidInvalid
     {
@@ -440,7 +440,7 @@ fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut pte_t, usize)> {
         return None;
     }
 
-    let lvl1pt = convert_to_mut_type_ref::<pte_t>(lvl1pt_cap.get_pt_base_ptr());
+    let lvl1pt = convert_to_mut_type_ref::<PTE>(lvl1pt_cap.get_pt_base_ptr());
     let asid = lvl1pt_cap.get_pt_mapped_asid();
 
     let find_ret = find_vspace_for_asid(asid);
