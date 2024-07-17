@@ -202,7 +202,6 @@ fn asid_init(root_cnode_cap: cap_t, it_pd_cap: cap_t) -> bool {
     }
     #[cfg(target_arch = "aarch64")]
     {
-
         write_it_asid_pool(&it_ap_cap, &it_pd_cap);
     }
     true

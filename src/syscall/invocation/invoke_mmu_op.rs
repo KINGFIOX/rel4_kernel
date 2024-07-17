@@ -3,6 +3,8 @@ use core::arch::asm;
 use sel4_common::arch::{maskVMRights, ArchReg};
 use sel4_common::cap_rights::seL4_CapRights_t;
 use sel4_common::utils::MAX_FREE_INDEX;
+#[cfg(target_arch = "aarch64")]
+use sel4_common::BIT;
 use sel4_common::MASK;
 use sel4_common::{
     message_info::seL4_MessageInfo_t,
@@ -19,9 +21,7 @@ use sel4_vspace::{
 #[cfg(target_arch = "riscv64")]
 use sel4_vspace::{copyGlobalMappings, sfence};
 #[cfg(target_arch = "aarch64")]
-use sel4_vspace::{PDE, PUDE,invalidate_tlb_by_asid_va};
-#[cfg(target_arch = "aarch64")]
-use sel4_common::BIT;
+use sel4_vspace::{invalidate_tlb_by_asid_va, PDE, PUDE};
 
 use crate::{kernel::boot::current_lookup_fault, utils::clear_memory};
 
@@ -34,7 +34,7 @@ pub fn invoke_page_table_unmap(cap: &mut cap_t) -> exception_t {
     cap.set_pt_is_mapped(0);
     exception_t::EXCEPTION_NONE
 }
-
+#[cfg(target_arch = "riscv64")]
 pub fn invoke_page_table_map(
     pt_cap: &mut cap_t,
     pt_slot: &mut PTE,
@@ -42,27 +42,32 @@ pub fn invoke_page_table_map(
     vaddr: usize,
 ) -> exception_t {
     let paddr = pptr_to_paddr(pt_cap.get_pt_base_ptr());
-    #[cfg(target_arch = "riscv64")]
-    {
-        let pte = PTE::new(paddr >> seL4_PageBits, PTEFlags::V);
-        *pt_slot = pte;
-    }
-    #[cfg(target_arch = "aarch64")]
-    {
-        let pde = PTE::new(paddr >> seL4_PageBits, PTEFlags::VALID);
-        *pt_slot = pde;
-    }
+    let pte = PTE::new(paddr >> seL4_PageBits, PTEFlags::V);
+    *pt_slot = pte;
     pt_cap.set_pt_is_mapped(1);
     pt_cap.set_pt_mapped_asid(asid);
     pt_cap.set_pt_mapped_address(vaddr);
-    #[cfg(target_arch = "riscv64")]
     sfence();
-    #[cfg(target_arch = "aarch64")]
+    exception_t::EXCEPTION_NONE
+}
+#[cfg(target_arch = "aarch64")]
+pub fn invoke_page_table_map(
+    pt_cap: &mut cap_t,
+    pd_slot: &mut PDE,
+    asid: usize,
+    vaddr: usize,
+) -> exception_t {
+    let paddr = pptr_to_paddr(pt_cap.get_pt_base_ptr());
+    let pde = PTE::new(paddr >> seL4_PageBits, PTEFlags::VALID).as_pde();
+    *pd_slot = pde;
+    pt_cap.set_pt_is_mapped(1);
+    pt_cap.set_pt_mapped_asid(asid);
+    pt_cap.set_pt_mapped_address(vaddr);
     unsafe {
         asm!(
             "dc cvau, {}",
             "dmb sy",
-            in(reg) pt_slot,
+            in(reg) pd_slot,
         );
     }
     exception_t::EXCEPTION_NONE
@@ -126,15 +131,15 @@ pub fn invoke_page_map(
 }
 #[cfg(target_arch = "aarch64")]
 pub fn invoke_huge_page_map(
-	vaddr: usize,
+    vaddr: usize,
     asid: usize,
     frame_slot: &mut cte_t,
     pude: PUDE,
     pudSlot: &mut PUDE,
 ) -> exception_t {
-	frame_slot.cap.set_frame_mapped_address(vaddr);
-	frame_slot.cap.set_frame_mapped_asid(asid);
-	*pudSlot = pude;
+    frame_slot.cap.set_frame_mapped_address(vaddr);
+    frame_slot.cap.set_frame_mapped_asid(asid);
+    *pudSlot = pude;
     unsafe {
         asm!(
             "dc cvau, {}",
@@ -142,65 +147,63 @@ pub fn invoke_huge_page_map(
             in(reg) pudSlot,
         );
     }
-	let tlbflush_required = pudSlot.get_pude_type()==1;
-	if tlbflush_required{
-		assert!(asid <BIT!(16));
-		invalidate_tlb_by_asid_va(asid, vaddr);
-	}
+    let tlbflush_required = pudSlot.get_pude_type() == 1;
+    if tlbflush_required {
+        assert!(asid < BIT!(16));
+        invalidate_tlb_by_asid_va(asid, vaddr);
+    }
     exception_t::EXCEPTION_NONE
 }
 
 #[cfg(target_arch = "aarch64")]
 pub fn invoke_large_page_map(
-	vaddr: usize,
+    vaddr: usize,
     asid: usize,
     frame_slot: &mut cte_t,
     pde: PDE,
     pdSlot: &mut PDE,
 ) -> exception_t {
-	frame_slot.cap.set_frame_mapped_address(vaddr);
-	frame_slot.cap.set_frame_mapped_asid(asid);
-	*pdSlot = pde;
-	unsafe {
+    frame_slot.cap.set_frame_mapped_address(vaddr);
+    frame_slot.cap.set_frame_mapped_asid(asid);
+    *pdSlot = pde;
+    unsafe {
         asm!(
             "dc cvau, {}",
             "dmb sy",
             in(reg) pdSlot,
         );
     }
-	let tlbflush_required = pdSlot.get_pde_type()==1;
-	if tlbflush_required{
-		assert!(asid <BIT!(16));
-		invalidate_tlb_by_asid_va(asid, vaddr);
-	}
+    let tlbflush_required = pdSlot.get_pde_type() == 1;
+    if tlbflush_required {
+        assert!(asid < BIT!(16));
+        invalidate_tlb_by_asid_va(asid, vaddr);
+    }
     exception_t::EXCEPTION_NONE
 }
 
 #[cfg(target_arch = "aarch64")]
 pub fn invoke_small_page_map(
-	vaddr: usize,
+    vaddr: usize,
     asid: usize,
     frame_slot: &mut cte_t,
     pte: PTE,
     ptSlot: &mut PTE,
 ) -> exception_t {
-    
-
-	frame_slot.cap.set_frame_mapped_address(vaddr);
-	frame_slot.cap.set_frame_mapped_asid(asid);
-	*ptSlot = pte;
-	unsafe {
+    frame_slot.cap.set_frame_mapped_address(vaddr);
+    frame_slot.cap.set_frame_mapped_asid(asid);
+    *ptSlot = pte;
+    unsafe {
         asm!(
             "dc cvau, {}",
             "dmb sy",
             in(reg) ptSlot,
         );
     }
-	let tlbflush_required = ptSlot.pte_ptr_get_present();
-	if tlbflush_required{
-		assert!(asid <BIT!(16));
-		invalidate_tlb_by_asid_va(asid, vaddr);
-	}
+    let tlbflush_required = ptSlot.pte_ptr_get_present();
+    if tlbflush_required {
+        assert!(asid < BIT!(16));
+        invalidate_tlb_by_asid_va(asid, vaddr);
+    }
     exception_t::EXCEPTION_NONE
 }
 

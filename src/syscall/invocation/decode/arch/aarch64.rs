@@ -24,7 +24,10 @@ use sel4_common::{
     MASK,
 };
 use sel4_cspace::interface::{cap_t, cte_t, CapTag};
-use sel4_vspace::{checkVPAlignment, find_vspace_for_asid, makeUser3rdLevel, make_user_1st_level, make_user_2nd_level, pptr_to_paddr, vm_attributes_t, PDE, PGDE, PTE, PUDE};
+use sel4_vspace::{
+    checkVPAlignment, find_vspace_for_asid, makeUser3rdLevel, make_user_1st_level,
+    make_user_2nd_level, pptr_to_paddr, vm_attributes_t, PDE, PGDE, PTE, PUDE,
+};
 
 use crate::syscall::invocation::invoke_mmu_op::{
     invoke_asid_control, invoke_asid_pool, invoke_huge_page_map, invoke_large_page_map,
@@ -146,10 +149,13 @@ fn decode_frame_map(
     }
     let vaddr = get_syscall_arg(0, buffer);
     let attr = vm_attributes_t::from_word(get_syscall_arg(2, buffer));
-    let lvl1pt_cap = get_extra_cap_by_index(0).unwrap().cap;
-	let frame_vm_rights = unsafe { core::mem::transmute(frame_slot.cap.get_frame_vm_rights()) };
-	let vm_rights = maskVMRights(frame_vm_rights, seL4_CapRights_t::from_word(get_syscall_arg(1, buffer)));
-    if let Some((lvl1pt, asid)) = get_vspace(&lvl1pt_cap) {
+    let vspaceRootCap = get_extra_cap_by_index(0).unwrap().cap;
+    let frame_vm_rights = unsafe { core::mem::transmute(frame_slot.cap.get_frame_vm_rights()) };
+    let vm_rights = maskVMRights(
+        frame_vm_rights,
+        seL4_CapRights_t::from_word(get_syscall_arg(1, buffer)),
+    );
+    if let Some((vspaceRoot, asid)) = get_vspace(&vspaceRootCap) {
         let frame_size = frame_slot.cap.get_frame_size();
         if unlikely(!checkVPAlignment(frame_size, vaddr)) {
             unsafe {
@@ -189,7 +195,7 @@ fn decode_frame_map(
         let base = pptr_to_paddr(frame_slot.cap.get_frame_base_ptr());
 
         if frame_size == ARM_Small_Page {
-            let lu_ret = lvl1pt.lookup_pt_slot(vaddr);
+            let lu_ret = vspaceRoot.lookup_pt_slot(vaddr);
             if lu_ret.status != exception_t::EXCEPTION_NONE {
                 unsafe {
                     current_syscall_error._type = seL4_FailedLookup;
@@ -199,9 +205,15 @@ fn decode_frame_map(
             }
             set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
             let ptSlot = convert_to_mut_type_ref::<PTE>(lu_ret.ptSlot as usize);
-            invoke_small_page_map(vaddr,asid, frame_slot, makeUser3rdLevel(base, vm_rights, attr),ptSlot)
+            invoke_small_page_map(
+                vaddr,
+                asid,
+                frame_slot,
+                makeUser3rdLevel(base, vm_rights, attr),
+                ptSlot,
+            )
         } else if frame_size == ARM_Large_Page {
-            let lu_ret = lvl1pt.lookup_pd_slot(vaddr);
+            let lu_ret = vspaceRoot.lookup_pd_slot(vaddr);
             if lu_ret.status != exception_t::EXCEPTION_NONE {
                 unsafe {
                     current_syscall_error._type = seL4_FailedLookup;
@@ -211,9 +223,15 @@ fn decode_frame_map(
             }
             set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
             let pdSlot = convert_to_mut_type_ref::<PDE>(lu_ret.pdSlot as usize);
-            invoke_large_page_map(vaddr,asid, frame_slot,make_user_2nd_level(base, vm_rights, attr), pdSlot)
+            invoke_large_page_map(
+                vaddr,
+                asid,
+                frame_slot,
+                make_user_2nd_level(base, vm_rights, attr),
+                pdSlot,
+            )
         } else if frame_size == ARM_Huge_Page {
-            let lu_ret = lvl1pt.lookup_pud_slot(vaddr);
+            let lu_ret = vspaceRoot.lookup_pud_slot(vaddr);
             if lu_ret.status != exception_t::EXCEPTION_NONE {
                 unsafe {
                     current_syscall_error._type = seL4_FailedLookup;
@@ -223,7 +241,13 @@ fn decode_frame_map(
             }
             set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
             let pudSlot = convert_to_mut_type_ref::<PUDE>(lu_ret.pudSlot as usize);
-            invoke_huge_page_map(vaddr,asid, frame_slot,make_user_1st_level(base, vm_rights, attr), pudSlot)
+            invoke_huge_page_map(
+                vaddr,
+                asid,
+                frame_slot,
+                make_user_1st_level(base, vm_rights, attr),
+                pudSlot,
+            )
         } else {
             return exception_t::EXCEPTION_SYSCALL_ERROR;
         }
@@ -277,10 +301,10 @@ fn decode_page_table_map(
         }
         return exception_t::EXCEPTION_SYSCALL_ERROR;
     }
-    let lvl1pt_cap = get_extra_cap_by_index(0).unwrap().cap;
+    let vspaceRootCap = get_extra_cap_by_index(0).unwrap().cap;
 
-    if let Some((lvl1pt, asid)) = get_vspace(&lvl1pt_cap) {
-        let pd_ret = lvl1pt.lookup_pd_slot(vaddr);
+    if let Some((vspaceRoot, asid)) = get_vspace(&vspaceRootCap) {
+        let pd_ret = vspaceRoot.lookup_pd_slot(vaddr);
         if pd_ret.status != exception_t::EXCEPTION_NONE {
             debug!("ARMPageTableMap: Invalid pd Slot");
             unsafe {
@@ -296,7 +320,7 @@ fn decode_page_table_map(
             }
             return exception_t::EXCEPTION_SYSCALL_ERROR;
         }
-        let pdSlot = convert_to_mut_type_ref::<PTE>(pd_ret.pdSlot as usize);
+        let pdSlot = convert_to_mut_type_ref::<PDE>(pd_ret.pdSlot as usize);
         set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
         return invoke_page_table_map(cap, pdSlot, asid, vaddr & !MASK!(PD_INDEX_OFFSET));
     } else {
@@ -304,9 +328,9 @@ fn decode_page_table_map(
     }
 }
 
-fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut PGDE, usize)> {
-    if lvl1pt_cap.get_cap_type() != CapTag::CapPageGlobalDirectoryCap
-        || lvl1pt_cap.get_pgd_is_mapped() == asidInvalid
+fn get_vspace(vspaceRootCap: &cap_t) -> Option<(&mut PGDE, usize)> {
+    if vspaceRootCap.get_cap_type() != CapTag::CapPageGlobalDirectoryCap
+        || vspaceRootCap.get_pgd_is_mapped() == asidInvalid
     {
         debug!("ARMMMUInvocation: Invalid top-level PageTable.");
         unsafe {
@@ -316,8 +340,8 @@ fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut PGDE, usize)> {
         return None;
     }
 
-    let lvl1pt = convert_to_mut_type_ref::<PGDE>(lvl1pt_cap.get_pgd_base_ptr());
-    let asid = lvl1pt_cap.get_pgd_mapped_asid();
+    let vspaceRoot = convert_to_mut_type_ref::<PGDE>(vspaceRootCap.get_pgd_base_ptr());
+    let asid = vspaceRootCap.get_pgd_mapped_asid();
 
     let find_ret = find_vspace_for_asid(asid);
     if find_ret.status != exception_t::EXCEPTION_NONE {
@@ -330,7 +354,7 @@ fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut PGDE, usize)> {
         return None;
     }
 
-    if find_ret.vspace_root.unwrap() as usize != lvl1pt.get_ptr() {
+    if find_ret.vspace_root.unwrap() as usize != vspaceRoot.get_ptr() {
         debug!("ARMMMUInvocation: ASID lookup failed2");
         unsafe {
             current_syscall_error._type = seL4_InvalidCapability;
@@ -338,7 +362,7 @@ fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut PGDE, usize)> {
         }
         return None;
     }
-    Some((lvl1pt, asid))
+    Some((vspaceRoot, asid))
 }
 
 fn decode_vspace_root_invocation(
