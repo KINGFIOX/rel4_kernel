@@ -58,7 +58,7 @@ pub fn invoke_page_table_map(
     vaddr: usize,
 ) -> exception_t {
     let paddr = pptr_to_paddr(pt_cap.get_pt_base_ptr());
-    let pde = PTE::new(paddr >> seL4_PageBits, PTEFlags::VALID).as_pde();
+    let pde = PDE::new_small(paddr >> seL4_PageBits);
     *pd_slot = pde;
     pt_cap.set_pt_is_mapped(1);
     pt_cap.set_pt_mapped_asid(asid);
