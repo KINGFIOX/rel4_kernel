@@ -56,7 +56,10 @@ pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret {
 
         CapTag::CapASIDPoolCap => {
             if final_ {
-                deleteASIDPool(cap.get_asid_base(), cap.get_asid_pool() as *mut asid_pool_t);
+                deleteASIDPool(
+                    cap.get_asid_base(),
+                    convert_to_mut_type_ref::<asid_pool_t>(cap.get_asid_pool()),
+                );
             }
         }
         _ => {}
@@ -214,7 +217,7 @@ pub fn deleteASID(asid: asid_t, vspace: *mut PTE) {
 }
 
 #[no_mangle]
-pub fn deleteASIDPool(asid_base: asid_t, pool: *mut asid_pool_t) {
+pub fn deleteASIDPool(asid_base: asid_t, pool: &mut asid_pool_t) {
     unsafe {
         if let Err(lookup_fault) = delete_asid_pool(
             asid_base,

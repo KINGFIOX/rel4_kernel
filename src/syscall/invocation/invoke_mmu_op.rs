@@ -223,6 +223,12 @@ pub fn invoke_asid_control(
         slot,
     );
     assert_eq!(asid_base & MASK!(asidLowBits), 0);
+    #[cfg(target_arch = "aarch64")]
+    set_asid_pool_by_index(
+        asid_base >> asidLowBits,
+        Some(convert_to_mut_type_ref::<asid_pool_t>(frame_ptr).clone()),
+    );
+    #[cfg(target_arch = "riscv64")]
     set_asid_pool_by_index(asid_base >> asidLowBits, frame_ptr);
     exception_t::EXCEPTION_NONE
 }
