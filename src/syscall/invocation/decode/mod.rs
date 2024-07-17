@@ -40,6 +40,7 @@ pub fn decode_invocation(
     call: bool,
     buffer: Option<&seL4_IPCBuffer>,
 ) -> exception_t {
+    log::debug!("in decode_invocation");
     match cap.get_cap_type() {
         CapTag::CapNullCap | CapTag::CapZombieCap => {
             debug!(

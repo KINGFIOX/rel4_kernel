@@ -19,6 +19,7 @@ use crate::syscall::{handle_fault, lookup_extra_caps_with_buf};
 
 #[no_mangle]
 pub fn handleInvocation(isCall: bool, isBlocking: bool) -> exception_t {
+    log::debug!("in handleInvocation");
     let thread = get_currenct_thread();
     let info =
         seL4_MessageInfo_t::from_word_security(thread.tcbArch.get_register(ArchReg::MsgInfo));
@@ -78,5 +79,6 @@ pub fn handleInvocation(isCall: bool, isBlocking: bool) -> exception_t {
         }
         set_thread_state(thread, ThreadState::ThreadStateRunning);
     }
+    log::debug!("out handleInvocation");
     return exception_t::EXCEPTION_NONE;
 }

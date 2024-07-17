@@ -47,6 +47,7 @@ pub fn decode_mmu_invocation(
     call: bool,
     buffer: Option<&seL4_IPCBuffer>,
 ) -> exception_t {
+    log::debug!("in decode_mmu_invocation ,MessageLabel:{:?}", label);
     match slot.cap.get_cap_type() {
         CapTag::CapPageGlobalDirectoryCap => {
             decode_vspace_root_invocation(label, length, slot, buffer)
@@ -140,6 +141,7 @@ fn decode_frame_map(
     frame_slot: &mut cte_t,
     buffer: Option<&seL4_IPCBuffer>,
 ) -> exception_t {
+    log::debug!("in decode_frame_map");
     if length < 3 || get_extra_cap_by_index(0).is_none() {
         debug!("ARMPageMap: Truncated message.");
         unsafe {
@@ -156,21 +158,26 @@ fn decode_frame_map(
         seL4_CapRights_t::from_word(get_syscall_arg(1, buffer)),
     );
     if let Some((vspaceRoot, asid)) = get_vspace(&vspaceRootCap) {
+        log::debug!("in Some((vspaceRoot, asid)) = get_vspace(&vspaceRootCap)");
         let frame_size = frame_slot.cap.get_frame_size();
         if unlikely(!checkVPAlignment(frame_size, vaddr)) {
             unsafe {
                 current_syscall_error._type = seL4_AlignmentError;
             }
+            log::debug!("out decode_frame_map, checkVPAlignment not pass");
             return exception_t::EXCEPTION_SYSCALL_ERROR;
         }
         let frame_asid = frame_slot.cap.get_frame_mapped_asid();
+        log::debug!("prepare check frame_asid");
         if frame_asid != asidInvalid {
+            log::debug!("frame_asid valid");
             if frame_asid != asid {
                 debug!("ARMPageMap: Attempting to remap a frame that does not belong to the passed address space");
                 unsafe {
                     current_syscall_error._type = seL4_InvalidCapability;
                     current_syscall_error.invalidArgumentNumber = 0;
                 }
+                log::debug!("out decode_frame_map, frame_asid == asid not pass");
                 return exception_t::EXCEPTION_SYSCALL_ERROR;
             }
 
@@ -180,31 +187,38 @@ fn decode_frame_map(
                     current_syscall_error._type = seL4_InvalidArgument;
                     current_syscall_error.invalidArgumentNumber = 2;
                 }
+                log::debug!("out decode_frame_map, frame_slot.cap.get_frame_mapped_address() == vaddr not pass");
                 return exception_t::EXCEPTION_SYSCALL_ERROR;
             }
         } else {
+            log::debug!("frame_asid valid");
             let vtop = vaddr + BIT!(pageBitsForSize(frame_size)) - 1;
             if unlikely(vtop >= USER_TOP) {
                 unsafe {
                     current_syscall_error._type = seL4_InvalidArgument;
                     current_syscall_error.invalidArgumentNumber = 0;
                 }
+                log::debug!("out decode_frame_map, vtop < USER_TOP not pass");
                 return exception_t::EXCEPTION_SYSCALL_ERROR;
             }
         }
         let base = pptr_to_paddr(frame_slot.cap.get_frame_base_ptr());
-
+        log::debug!("prepare check frame_size :{}", frame_size);
         if frame_size == ARM_Small_Page {
+            log::debug!("in ARM_Small_Page");
             let lu_ret = vspaceRoot.lookup_pt_slot(vaddr);
+            log::debug!("out lookup_pt_slot");
             if lu_ret.status != exception_t::EXCEPTION_NONE {
                 unsafe {
                     current_syscall_error._type = seL4_FailedLookup;
                     current_syscall_error.failedLookupWasSource = 0;
                 }
+                log::debug!("out decode_frame_map, lu_ret.status!=exception_t::EXCEPTION_NONE");
                 return exception_t::EXCEPTION_SYSCALL_ERROR;
             }
             set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
             let ptSlot = convert_to_mut_type_ref::<PTE>(lu_ret.ptSlot as usize);
+            log::debug!("out decode_frame_map , prepare invoke_small_page_map");
             invoke_small_page_map(
                 vaddr,
                 asid,
@@ -219,10 +233,12 @@ fn decode_frame_map(
                     current_syscall_error._type = seL4_FailedLookup;
                     current_syscall_error.failedLookupWasSource = 0;
                 }
+                log::debug!("out decode_frame_map, lu_ret.status!=exception_t::EXCEPTION_NONE");
                 return exception_t::EXCEPTION_SYSCALL_ERROR;
             }
             set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
             let pdSlot = convert_to_mut_type_ref::<PDE>(lu_ret.pdSlot as usize);
+            log::debug!("out decode_frame_map , prepare invoke_large_page_map");
             invoke_large_page_map(
                 vaddr,
                 asid,
@@ -237,10 +253,12 @@ fn decode_frame_map(
                     current_syscall_error._type = seL4_FailedLookup;
                     current_syscall_error.failedLookupWasSource = 0;
                 }
+                log::debug!("out decode_frame_map, lu_ret.status!=exception_t::EXCEPTION_NONE");
                 return exception_t::EXCEPTION_SYSCALL_ERROR;
             }
             set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
             let pudSlot = convert_to_mut_type_ref::<PUDE>(lu_ret.pudSlot as usize);
+            log::debug!("out decode_frame_map , prepare invoke_huge_page_map");
             invoke_huge_page_map(
                 vaddr,
                 asid,
@@ -249,9 +267,11 @@ fn decode_frame_map(
                 pudSlot,
             )
         } else {
+            log::debug!("out decode_frame_map, frame_size unknown");
             return exception_t::EXCEPTION_SYSCALL_ERROR;
         }
     } else {
+        log::debug!("out decode_frame_map , in get_vspace(&lvl1pt_cap) == None");
         return exception_t::EXCEPTION_SYSCALL_ERROR;
     }
 }
@@ -275,6 +295,7 @@ fn decode_page_table_map(
     pt_cte: &mut cte_t,
     buffer: Option<&seL4_IPCBuffer>,
 ) -> exception_t {
+    log::debug!("in decode_page_table_map");
     if unlikely(length < 2 || get_extra_cap_by_index(0).is_none()) {
         debug!("ARMPageTableMap: truncated message");
         unsafe {
@@ -329,6 +350,7 @@ fn decode_page_table_map(
 }
 
 fn get_vspace(vspaceRootCap: &cap_t) -> Option<(&mut PGDE, usize)> {
+    log::debug!("in get_vspace");
     if vspaceRootCap.get_cap_type() != CapTag::CapPageGlobalDirectoryCap
         || vspaceRootCap.get_pgd_is_mapped() == asidInvalid
     {
@@ -362,6 +384,7 @@ fn get_vspace(vspaceRootCap: &cap_t) -> Option<(&mut PGDE, usize)> {
         }
         return None;
     }
+    log::debug!("out get_vspace");
     Some((vspaceRoot, asid))
 }
 

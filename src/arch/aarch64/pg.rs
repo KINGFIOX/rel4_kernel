@@ -55,6 +55,6 @@ extern "C" fn decodeARMMMUInvocation(
     call: bool,
     buffer: Option<&seL4_IPCBuffer>,
 ) -> exception_t {
-    // todo!("decodeARMMMUInvocation")
+    log::debug!("in decodeARMMMUInvocation");
     decode_mmu_invocation(invLabel, length, cte, call, buffer)
 }
