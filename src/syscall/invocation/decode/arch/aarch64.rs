@@ -371,8 +371,60 @@ fn decode_vspace_root_invocation(
     cte: &mut cte_t,
     buffer: Option<&seL4_IPCBuffer>,
 ) -> exception_t {
-    todo!();
-    exception_t::EXCEPTION_NONE
+    match label {
+        MessageLabel::ARMVSpaceClean_Data
+        | MessageLabel::ARMVSpaceInvalidate_Data
+        | MessageLabel::ARMVSpaceCleanInvalidate_Data
+        | MessageLabel::ARMVSpaceUnify_Instruction => {
+            if length < 2 {
+                debug!("VSpaceRoot Flush: Truncated message.");
+                unsafe {
+                    current_syscall_error._type = seL4_IllegalOperation;
+                }
+                return exception_t::EXCEPTION_SYSCALL_ERROR;
+            }
+            let start = get_syscall_arg(0, buffer);
+            let end = get_syscall_arg(1, buffer);
+
+            if end <= start {
+                debug!("VSpaceRoot Flush: Invalid range.");
+                unsafe {
+                    current_syscall_error._type = seL4_IllegalOperation;
+                    current_syscall_error.invalidArgumentNumber = 1;
+                }
+                return exception_t::EXCEPTION_SYSCALL_ERROR;
+            }
+
+            if end > USER_TOP {
+                debug!("VSpaceRoot Flush: Exceed the user addressable region.");
+                unsafe {
+                    current_syscall_error._type = seL4_IllegalOperation;
+                }
+                return exception_t::EXCEPTION_SYSCALL_ERROR;
+            }
+			
+			if let Some((vspaceRoot, asid)) = get_vspace(&cte.cap) {
+				let resolve_ret = vspaceRoot.lookup_frame(start);
+				if resolve_ret.valid == false {
+					set_thread_state(get_currenct_thread(), ThreadState::ThreadStateRestart);
+					return exception_t::EXCEPTION_NONE;
+				}
+				
+			}else {
+				return exception_t::EXCEPTION_SYSCALL_ERROR;
+			}
+
+            todo!();
+            exception_t::EXCEPTION_NONE
+        }
+        _ => {
+            debug!("invalid operation label:{:?}", label);
+            unsafe {
+                current_syscall_error._type = seL4_IllegalOperation;
+            }
+            exception_t::EXCEPTION_SYSCALL_ERROR
+        }
+    }
 }
 
 fn decode_page_upper_directory_invocation(
