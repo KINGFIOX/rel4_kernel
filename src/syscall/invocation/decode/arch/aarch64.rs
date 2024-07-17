@@ -24,7 +24,7 @@ use sel4_common::{
     MASK,
 };
 use sel4_cspace::interface::{cap_t, cte_t, CapTag};
-use sel4_vspace::{checkVPAlignment, find_vspace_for_asid, makeUser3rdLevel, make_user_1st_level, make_user_2nd_level, pptr_to_paddr, vm_attributes_t, PDE, PTE, PUDE};
+use sel4_vspace::{checkVPAlignment, find_vspace_for_asid, makeUser3rdLevel, make_user_1st_level, make_user_2nd_level, pptr_to_paddr, vm_attributes_t, PDE, PGDE, PTE, PUDE};
 
 use crate::syscall::invocation::invoke_mmu_op::{
     invoke_asid_control, invoke_asid_pool, invoke_huge_page_map, invoke_large_page_map,
@@ -304,7 +304,7 @@ fn decode_page_table_map(
     }
 }
 
-fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut PTE, usize)> {
+fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut PGDE, usize)> {
     if lvl1pt_cap.get_cap_type() != CapTag::CapPageGlobalDirectoryCap
         || lvl1pt_cap.get_pgd_is_mapped() == asidInvalid
     {
@@ -316,12 +316,12 @@ fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut PTE, usize)> {
         return None;
     }
 
-    let lvl1pt = convert_to_mut_type_ref::<PTE>(lvl1pt_cap.get_pt_base_ptr());
-    let asid = lvl1pt_cap.get_pt_mapped_asid();
+    let lvl1pt = convert_to_mut_type_ref::<PGDE>(lvl1pt_cap.get_pgd_base_ptr());
+    let asid = lvl1pt_cap.get_pgd_mapped_asid();
 
     let find_ret = find_vspace_for_asid(asid);
     if find_ret.status != exception_t::EXCEPTION_NONE {
-        debug!("ARMMMUInvocation: ASID lookup failed");
+        debug!("ARMMMUInvocation: ASID lookup failed1");
         unsafe {
             current_lookup_fault = find_ret.lookup_fault.unwrap();
             current_syscall_error._type = seL4_FailedLookup;
@@ -331,7 +331,7 @@ fn get_vspace(lvl1pt_cap: &cap_t) -> Option<(&mut PTE, usize)> {
     }
 
     if find_ret.vspace_root.unwrap() as usize != lvl1pt.get_ptr() {
-        debug!("ARMMMUInvocation: ASID lookup failed");
+        debug!("ARMMMUInvocation: ASID lookup failed2");
         unsafe {
             current_syscall_error._type = seL4_InvalidCapability;
             current_syscall_error.invalidCapNumber = 1;
