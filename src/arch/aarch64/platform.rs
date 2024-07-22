@@ -2,6 +2,7 @@ use aarch64_cpu::registers::Writeable;
 use aarch64_cpu::registers::{TPIDR_EL1, VBAR_EL1};
 use core::arch::asm;
 use sel4_common::arch::config::{KERNEL_ELF_BASE, PADDR_TOP};
+use sel4_common::ffi::kernel_stack_alloc;
 use sel4_common::ffi_addr;
 use sel4_common::sel4_config::{wordBits, CONFIG_KERNEL_STACK_BITS};
 use sel4_common::utils::cpu_id;
@@ -27,7 +28,8 @@ pub fn init_cpu() -> bool {
     // Wrapping_add, first argument is CURRENT_CPU_INDEX
     //
     let mut stack_top =
-        (kernel_stack_alloc as *mut u8).wrapping_add(0 + (1 << CONFIG_KERNEL_STACK_BITS)) as u64;
+        unsafe { &kernel_stack_alloc.data[0][0 + (1 << CONFIG_KERNEL_STACK_BITS)] as *const u8 }
+            as u64;
     stack_top |= cpu_id() as u64; //the judge of enable smp have done in cpu_id
 
     TPIDR_EL1.set(stack_top);

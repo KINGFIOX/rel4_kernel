@@ -13,6 +13,10 @@ use sel4_task::{get_currenct_thread, ksWorkUnitsCompleted, tcb_t};
 use sel4_vspace::{
     asid_pool_t, asid_t, delete_asid, delete_asid_pool, find_vspace_for_asid, unmapPage, PTE,
 };
+#[cfg(target_arch = "aarch64")]
+use sel4_vspace::{
+    unmap_page_directory, unmap_page_table, unmap_page_upper_directory, PDE, PGDE, PUDE,
+};
 
 #[cfg(target_arch = "riscv64")]
 #[no_mangle]
@@ -67,8 +71,67 @@ pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret {
 }
 
 #[cfg(target_arch = "aarch64")]
-extern "C" {
-    pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret;
+// extern "C" {
+//     pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret;
+// }
+pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret {
+    let mut fc_ret = finaliseCap_ret::default();
+    match cap.get_cap_type() {
+        CapTag::CapASIDPoolCap => {
+            if final_ {
+                deleteASIDPool(cap.get_asid_base(), cap.get_asid_pool() as *mut asid_pool_t);
+            }
+        }
+        CapTag::CapPageGlobalDirectoryCap => {
+            if final_ && cap.get_pgd_is_mapped() != 0 {
+                deleteASID(
+                    cap.get_pgd_mapped_asid(),
+                    cap.get_pgd_base_ptr() as *mut sel4_vspace::PGDE,
+                );
+            }
+        }
+        CapTag::CapPageUpperDirectoryCap => {
+            if final_ && cap.get_pud_is_mapped() != 0 {
+                unmap_page_upper_directory(
+                    cap.get_pud_mapped_asid(),
+                    cap.get_pud_mapped_address(),
+                    &PUDE::new_from_pte(cap.get_pud_base_ptr()),
+                );
+            }
+        }
+        CapTag::CapPageDirectoryCap => {
+            if final_ && cap.get_pd_is_mapped() != 0 {
+                unmap_page_directory(
+                    cap.get_pd_mapped_asid(),
+                    cap.get_pd_mapped_address(),
+                    &PDE::new_from_pte(cap.get_pd_base_ptr()),
+                );
+            }
+        }
+        CapTag::CapPageTableCap => {
+            if final_ && cap.get_pt_is_mapped() != 0 {
+                unmap_page_table(
+                    cap.get_pt_mapped_asid(),
+                    cap.get_pt_mapped_address(),
+                    &PTE::new_from_pte(cap.get_pt_base_ptr()),
+                );
+            }
+        }
+        CapTag::CapFrameCap => {
+            if cap.get_frame_mapped_asid() != 0 {
+                let _ = unmapPage(
+                    cap.get_frame_size(),
+                    cap.get_frame_mapped_asid(),
+                    cap.get_frame_mapped_address(),
+                    cap.get_frame_base_ptr(),
+                );
+            }
+        }
+        _ => panic!(),
+    }
+    fc_ret.remainder = cap_t::new_null_cap();
+    fc_ret.cleanupInfo = cap_t::new_null_cap();
+    fc_ret
 }
 
 #[no_mangle]
@@ -201,6 +264,7 @@ pub fn preemptionPoint() -> exception_t {
 }
 
 #[no_mangle]
+#[cfg(target_arch = "riscv64")]
 pub fn deleteASID(asid: asid_t, vspace: *mut PTE) {
     unsafe {
         if let Err(lookup_fault) = delete_asid(
@@ -211,6 +275,11 @@ pub fn deleteASID(asid: asid_t, vspace: *mut PTE) {
             current_lookup_fault = lookup_fault;
         }
     }
+}
+#[no_mangle]
+#[cfg(target_arch = "aarch64")]
+pub fn deleteASID(asid: asid_t, vspace: *mut PGDE) {
+    todo!()
 }
 
 #[no_mangle]
