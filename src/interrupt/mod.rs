@@ -4,7 +4,7 @@ use crate::BIT;
 #[cfg(target_arch = "riscv64")]
 use core::arch::asm;
 use sel4_common::sel4_config::CONFIG_MAX_NUM_NODES;
-use sel4_common::utils::{convert_to_mut_type_ref, cpu_id};
+use sel4_common::utils::{convert_to_mut_type_ref, cpu_id, global_ops};
 use sel4_cspace::interface::cte_t;
 use sel4_vspace::pptr_t;
 
@@ -34,7 +34,7 @@ pub enum IRQState {
 
 #[cfg(not(feature = "ENABLE_SMP"))]
 #[allow(dead_code)]
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum IRQState {
     IRQInactive = 0,
     IRQSignal = 1,
@@ -60,16 +60,16 @@ pub fn deletingIRQHandler(irq: usize) {
 pub fn set_irq_state(state: IRQState, irq: usize) {
     unsafe {
         intStateIRQTable[irq] = state as usize;
-        mask_interrupt(state == IRQState::IRQInactive, irq)
     }
+    mask_interrupt(state == IRQState::IRQInactive, irq);
 }
 
 #[no_mangle]
 pub fn setIRQState(state: IRQState, irq: usize) {
     unsafe {
         intStateIRQTable[irq] = state as usize;
-        mask_interrupt(state == IRQState::IRQInactive, irq);
     }
+    mask_interrupt(state == IRQState::IRQInactive, irq);
 }
 
 #[no_mangle]
@@ -106,6 +106,7 @@ pub fn clear_sie_mask(_mask_low: usize) {
 
 #[inline]
 pub fn mask_interrupt(disable: bool, irq: usize) {
+    #[cfg(target_arch = "riscv64")]
     if irq == KERNEL_TIMER_IRQ {
         if disable {
             clear_sie_mask(BIT!(SIE_STIE));
@@ -113,8 +114,20 @@ pub fn mask_interrupt(disable: bool, irq: usize) {
             set_sie_mask(BIT!(SIE_STIE));
         }
     }
+    #[cfg(target_arch = "aarch64")]
+    {
+        if irq == KERNEL_TIMER_IRQ {
+            if disable {
+                log::info!("disable interrupt: {}", irq);
+            }
+            else {
+                crate::arch::arm_gic::gic_v2::irq_enable(irq);
+            }
+        }
+    }
 }
 
+#[cfg(target_arch = "riscv64")]
 pub fn isIRQPending() -> bool {
     let sip = read_sip();
     if (sip & (BIT!(SIP_STIP) | BIT!(SIP_SEIP))) != 0 {
@@ -124,12 +137,22 @@ pub fn isIRQPending() -> bool {
     }
 }
 
+#[cfg(target_arch = "aarch64")]
+pub fn isIRQPending() -> bool {
+    false
+}
+
 #[no_mangle]
 pub fn ackInterrupt(irq: usize) {
     unsafe {
         active_irq[cpu_id()] = irqInvalid;
     }
     if irq == KERNEL_TIMER_IRQ {
+        #[cfg(target_arch = "aarch64")]
+        {
+            crate::arch::arm_gic::gic_v2::gic_v2::ack_irq(irq);
+            global_ops!(active_irq[cpu_id()] = 0);
+        }
         return;
     }
     #[cfg(feature = "ENABLE_SMP")]
@@ -152,6 +175,7 @@ pub fn isIRQActive(_irq: usize) -> bool {
     panic!("should not be invoked!")
 }
 
+#[cfg(target_arch = "riscv64")]
 #[inline]
 #[no_mangle]
 pub fn getActiveIRQ() -> usize {
@@ -159,7 +183,6 @@ pub fn getActiveIRQ() -> usize {
     if IS_IRQ_VALID(irq) {
         return irq;
     }
-
     let sip = read_sip();
     #[cfg(feature = "ENABLE_SMP")]
     {
@@ -190,6 +213,35 @@ pub fn getActiveIRQ() -> usize {
     return irq;
 }
 
-pub fn IS_IRQ_VALID(x: usize) -> bool {
+#[cfg(target_arch = "aarch64")]
+#[inline]
+#[no_mangle]
+pub fn getActiveIRQ() -> usize {
+    /*
+        irq_t irq;
+        if (!IS_IRQ_VALID(active_irq[CURRENT_CPU_INDEX()])) {
+            active_irq[CURRENT_CPU_INDEX()] = gic_cpuiface->int_ack;
+        }
+
+        if (IS_IRQ_VALID(active_irq[CURRENT_CPU_INDEX()])) {
+            irq = CORE_IRQ_TO_IRQT(CURRENT_CPU_INDEX(), active_irq[CURRENT_CPU_INDEX()] & IRQ_MASK);
+        } else {
+            irq = irqInvalid;
+        }
+    */
+    use crate::arch::arm_gic::gic_v2::{consts::IRQ_MASK, gic_v2::gic_int_ack};
+
+    if !IS_IRQ_VALID(global_ops!(active_irq[cpu_id()])) {
+        global_ops!(active_irq[cpu_id()] = gic_int_ack());
+    }
+    let irq = match global_ops!(IS_IRQ_VALID(active_irq[cpu_id()])) {
+        true => global_ops!(active_irq[cpu_id()] & IRQ_MASK as usize),
+        false => irqInvalid
+    };
+    log::debug!("active irq: {}", irq);
+    irq
+}
+
+pub const fn IS_IRQ_VALID(x: usize) -> bool {
     (x <= maxIRQ) && (x != irqInvalid)
 }

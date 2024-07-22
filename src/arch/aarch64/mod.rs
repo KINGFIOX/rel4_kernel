@@ -9,20 +9,11 @@ mod platform;
 
 pub mod arm_gic;
 
-use crate::config::RESET_CYCLES;
+use aarch64_cpu::registers::{Writeable, CNTV_CTL_EL0, CNTV_TVAL_EL0};
 pub use boot::try_init_kernel;
 pub use c_traps::restore_user_context;
+pub(crate) use pg::set_vm_root_for_flush;
 pub use platform::init_freemem;
-use sel4_common::arch::set_timer;
-
-pub fn read_stval() -> usize {
-    // let temp: usize;
-    // unsafe {
-    //     asm!("csrr {}, stval",out(reg)temp);
-    // }
-    // temp
-    todo!("read_stval")
-}
 
 pub fn read_sip() -> usize {
     // let temp: usize;
@@ -33,30 +24,15 @@ pub fn read_sip() -> usize {
     todo!("read_sip")
 }
 
-pub fn read_time() -> usize {
-    // let temp: usize;
-    // unsafe {
-    //     asm!("rdtime {}",out(reg)temp);
-    // }
-    // temp
-    todo!("read_time")
-}
-
-pub fn read_scause() -> usize {
-    // let temp: usize;
-    // unsafe {
-    //     asm!("csrr {}, scause",out(reg)temp);
-    // }
-    // temp
-    todo!("read_scause")
-}
-
+/// Reset the current Timer
 #[no_mangle]
 pub fn resetTimer() {
-    let mut target = read_time() + RESET_CYCLES;
-    set_timer(target);
-    while read_time() > target {
-        target = read_time() + RESET_CYCLES;
-        set_timer(target);
-    }
+    /*
+        SYSTEM_WRITE_WORD(CNT_TVAL, TIMER_RELOAD);
+        SYSTEM_WRITE_WORD(CNT_CTL, BIT(0));
+    */
+    const TIMER_CLOCK_HZ: u64 = 62500000;
+    // TODO: Set a proper timer clock
+    CNTV_TVAL_EL0.set(TIMER_CLOCK_HZ / 1000 * 10);
+    CNTV_CTL_EL0.set(1);
 }

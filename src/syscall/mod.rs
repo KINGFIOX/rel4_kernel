@@ -17,7 +17,7 @@ pub const SysReply: isize = -6;
 pub const SysYield: isize = -7;
 pub const SysNBRecv: isize = -8;
 use sel4_common::structures::exception_t;
-use sel4_common::utils::convert_to_mut_type_ref;
+use sel4_common::utils::{convert_to_mut_type_ref, ptr_to_mut};
 use sel4_cspace::interface::CapTag;
 use sel4_ipc::{endpoint_t, notification_t, Transfer};
 use sel4_task::{
@@ -35,7 +35,6 @@ use self::invocation::handleInvocation;
 
 #[no_mangle]
 pub fn slowpath(syscall: usize) {
-    // log::debug!("enter slow path: {}", syscall as isize);
     if (syscall as isize) < -8 || (syscall as isize) > -1 {
         // using ffi_call! macro to call c function
         ffi_call!(handleUnknownSyscall(id: usize => syscall));
@@ -106,7 +105,7 @@ fn send_fault_ipc(thread: &mut tcb_t) -> exception_t {
         }
         return exception_t::EXCEPTION_FAULT;
     }
-    let handler_cap = &unsafe { (*lu_ret.slot).cap };
+    let handler_cap = &mut ptr_to_mut(lu_ret.slot).cap;
     if handler_cap.get_cap_type() == CapTag::CapEndpointCap
         && (handler_cap.get_ep_can_grant() != 0 || handler_cap.get_ep_can_grant_reply() != 0)
     {
@@ -135,7 +134,6 @@ fn send_fault_ipc(thread: &mut tcb_t) -> exception_t {
 #[inline]
 pub fn handle_fault(thread: &mut tcb_t) {
     if send_fault_ipc(thread) != exception_t::EXCEPTION_NONE {
-        // debug!("send_fault_ipc fail");
         set_thread_state(thread, ThreadState::ThreadStateInactive);
     }
 }

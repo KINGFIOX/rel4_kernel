@@ -109,10 +109,17 @@ pub const INTERRUPT_IPI_1: usize = 2;
 #[cfg(feature = "ENABLE_SMP")]
 pub const KERNEL_TIMER_IRQ: usize = 3;
 
-#[cfg(not(feature = "ENABLE_SMP"))]
+#[cfg(all(not(feature = "ENABLE_SMP"), target_arch = "riscv64"))]
 pub const KERNEL_TIMER_IRQ: usize = 1;
 
+#[cfg(all(not(feature = "ENABLE_SMP"), target_arch = "aarch64"))]
+pub const KERNEL_TIMER_IRQ: usize = 27;
+
+#[cfg(target_arch = "riscv64")]
 pub const maxIRQ: usize = KERNEL_TIMER_IRQ;
+
+#[cfg(target_arch = "aarch64")]
+pub const maxIRQ: usize = 159;
 
 pub const irqInvalid: usize = 0;
 

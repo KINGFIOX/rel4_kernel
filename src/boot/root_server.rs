@@ -9,12 +9,14 @@ use crate::structures::{
 use crate::{BIT, ROUND_DOWN};
 use log::debug;
 use sel4_common::arch::{ArchReg, ArchTCB};
+#[cfg(target_arch = "riscv64")]
+use sel4_common::sel4_config::CONFIG_PT_LEVELS;
 #[cfg(target_arch = "aarch64")]
 use sel4_common::sel4_config::PT_INDEX_BITS;
 use sel4_common::sel4_config::{
     asidLowBits, seL4_PageBits, seL4_PageTableBits, seL4_SlotBits, seL4_TCBBits, tcbBuffer,
-    tcbCTable, tcbVTable, wordBits, CONFIG_MAX_NUM_NODES, CONFIG_NUM_DOMAINS, CONFIG_PT_LEVELS,
-    CONFIG_TIME_SLICE, IT_ASID, PAGE_BITS, TCB_OFFSET,
+    tcbCTable, tcbVTable, wordBits, CONFIG_MAX_NUM_NODES, CONFIG_NUM_DOMAINS, CONFIG_TIME_SLICE,
+    IT_ASID, PAGE_BITS, TCB_OFFSET,
 };
 use sel4_common::structures::{exception_t, seL4_IPCBuffer};
 use sel4_common::utils::convert_to_mut_type_ref;
@@ -66,8 +68,6 @@ pub fn root_server_init(
     }
 
     create_domain_cap(&root_cnode_cap);
-    //TODO: Implemente it for aarch64 in the future
-    #[cfg(target_arch = "riscv64")]
     init_irqs(&root_cnode_cap);
     unsafe {
         rust_populate_bi_frame(0, CONFIG_MAX_NUM_NODES, ipcbuf_vptr, extra_bi_size);

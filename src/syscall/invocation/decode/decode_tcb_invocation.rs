@@ -297,13 +297,19 @@ fn decode_tcb_configure(
         }
         return exception_t::EXCEPTION_SYSCALL_ERROR;
     }
-
     match decode_set_space_args(vroot_data, vroot_cap, vroot_slot) {
         Ok(cap) => vroot_cap = cap,
         Err(status) => return status,
     }
+    #[cfg(target_arch = "riscv64")]
     if !is_valid_vtable_root(&vroot_cap) {
-        debug!("TCB Configure: VSpace cap is invalid.");
+        unsafe {
+            current_syscall_error._type = seL4_IllegalOperation;
+        }
+        return exception_t::EXCEPTION_SYSCALL_ERROR;
+    }
+    #[cfg(target_arch = "aarch64")]
+    if !vroot_cap.is_valid_vtable_root() {
         unsafe {
             current_syscall_error._type = seL4_IllegalOperation;
         }
@@ -538,8 +544,15 @@ fn decode_set_space(
         Ok(cap) => vroot_cap = cap,
         Err(status) => return status,
     }
+    #[cfg(target_arch = "riscv64")]
     if !is_valid_vtable_root(&vroot_cap) {
-        debug!("TCB Configure: VSpace cap is invalid.");
+        unsafe {
+            current_syscall_error._type = seL4_IllegalOperation;
+        }
+        return exception_t::EXCEPTION_SYSCALL_ERROR;
+    }
+    #[cfg(target_arch = "aarch64")]
+    if !vroot_cap.is_valid_vtable_root() {
         unsafe {
             current_syscall_error._type = seL4_IllegalOperation;
         }

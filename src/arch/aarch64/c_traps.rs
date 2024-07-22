@@ -1,14 +1,5 @@
-use super::read_scause;
-use crate::{
-    config::{
-        RISCVInstructionAccessFault, RISCVInstructionPageFault, RISCVLoadAccessFault,
-        RISCVLoadPageFault, RISCVStoreAccessFault, RISCVStorePageFault,
-    },
-    syscall::slowpath,
-};
-
-use super::exception::{handleUserLevelFault, handleVMFaultEvent};
 use crate::interrupt::handler::handleInterruptEntry;
+use crate::syscall::slowpath;
 
 #[cfg(feature = "ENABLE_SMP")]
 use crate::{
@@ -16,7 +7,6 @@ use crate::{
     interrupt::getActiveIRQ,
 };
 
-use sel4_common::ffi_call;
 #[cfg(feature = "ENABLE_SMP")]
 use sel4_common::utils::cpu_id;
 use sel4_task::get_currenct_thread;
@@ -98,10 +88,12 @@ pub fn restore_user_context() {
 
 #[no_mangle]
 pub fn c_handle_interrupt() {
-    // debug!("c_handle_interrupt");
+    // log::debug!("c_handle_interrupt");
     // if hart_id() != 0 {
     //     debug!("c_handle_interrupt");
     // }
+    entry_hook();
+
     #[cfg(feature = "ENABLE_SMP")]
     {
         use crate::config::INTERRUPT_IPI_0;

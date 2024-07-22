@@ -92,7 +92,8 @@ pub fn invoke_page_unmap(frame_slot: &mut cte_t) -> exception_t {
         match unmapPage(
             frame_slot.cap.get_frame_size(),
             frame_slot.cap.get_frame_mapped_asid(),
-            frame_slot.cap.get_pt_mapped_address(),
+            // FIXME: here should be frame_mapped_address.
+            frame_slot.cap.get_frame_mapped_address(),
             frame_slot.cap.get_frame_base_ptr(),
         ) {
             Err(lookup_fault) => unsafe {

@@ -15,7 +15,9 @@ pub static mut current_lookup_fault: lookup_fault_t = lookup_fault_t { words: [0
 
 #[no_mangle]
 #[link_section = ".boot.bss"]
-pub static mut current_fault: seL4_Fault_t = seL4_Fault_t { words: [0; 2] };
+pub static mut current_fault: seL4_Fault_t = seL4_Fault_t {
+    words: [0; seL4_Fault_t::WIDTH],
+};
 
 #[no_mangle]
 #[link_section = ".boot.bss"]

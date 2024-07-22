@@ -84,6 +84,17 @@ fn create_object(
     device_mem: usize,
 ) -> cap_t {
     match obj_type {
+        ObjectType::TCBObject => {
+            let tcb = convert_to_mut_type_ref::<tcb_t>(region_base + TCB_OFFSET);
+            tcb.init();
+            tcb.tcbTimeSlice = CONFIG_TIME_SLICE;
+            tcb.domain = get_current_domain();
+            unsafe {
+                tcbDebugAppend(tcb as *mut tcb_t);
+            }
+            return cap_t::new_thread_cap(tcb.get_ptr());
+        }
+
         ObjectType::seL4_ARM_SmallPageObject => cap_t::new_frame_cap(
             device_mem,
             vm_rights_t::VMReadWrite as _,
@@ -92,8 +103,37 @@ fn create_object(
             asidInvalid,
             region_base,
         ),
+        ObjectType::CapTableObject => cap_t::new_cnode_cap(user_size, 0, 0, region_base),
+        ObjectType::NotificationObject => cap_t::new_notification_cap(0, 1, 1, region_base),
+        ObjectType::EndpointObject => cap_t::new_endpoint_cap(0, 1, 1, 1, 1, region_base),
+        ObjectType::UnytpedObject => cap_t::new_untyped_cap(0, device_mem, user_size, region_base),
+        // TODO: remove ARCH related object to arch-specific module.
+        ObjectType::seL4_ARM_PageUpperDirectoryObject => {
+            cap_t::new_page_upper_directory_cap(asidInvalid, region_base, 0, 0)
+        }
+        // TODO: remove ARCH related object to arch-specific module.
+        ObjectType::seL4_ARM_PageDirectoryObject => {
+            cap_t::new_page_directory_cap(asidInvalid, region_base, 0, 0)
+        }
+        // TODO: remove ARCH related object to arch-specific module.
+        ObjectType::seL4_ARM_PageTableObject => {
+            cap_t::new_page_table_cap(asidInvalid, region_base, 0, 0)
+        }
+        // TODO: remove ARCH related object to arch-specific module.
+        ObjectType::seL4_ARM_PageGlobalDirectoryObject => {
+            cap_t::new_page_global_directory_cap(asidInvalid, region_base, 0)
+        }
+        // TODO: remove ARCH related object to arch-specific module.
+        ObjectType::seL4_ARM_LargePageObject => cap_t::new_frame_cap(
+            device_mem,
+            vm_rights_t::VMReadWrite as _,
+            0,
+            ARM_Large_Page,
+            asidInvalid,
+            region_base,
+        ),
         _ => {
-            todo!(
+            unimplemented!(
                 "create object: {:?} region: {:#x} - {:#x}",
                 obj_type,
                 region_base,
@@ -184,7 +224,6 @@ pub fn invoke_untyped_retype(
             return status;
         }
     }
-
     let total_object_size = dest_length << new_type.get_object_size(user_size);
     let free_ref = retype_base + total_object_size;
     src_slot

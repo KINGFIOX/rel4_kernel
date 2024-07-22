@@ -1,11 +1,14 @@
-use super::read_stval;
+use crate::arch::aarch64::consts::ARMDataAbort;
 use crate::arch::aarch64::consts::ARMPrefetchAbort;
 use crate::kernel::boot::current_fault;
 use crate::syscall::handle_fault;
-use crate::{arch::aarch64::consts::ARMDataAbort, config::*};
+use aarch64_cpu::registers::Readable;
+use aarch64_cpu::registers::TTBR0_EL1;
+use sel4_common::arch::ArchReg;
 use sel4_common::fault::seL4_Fault_t;
 use sel4_common::structures::exception_t;
-use sel4_task::{activateThread, get_currenct_thread, schedule};
+use sel4_common::utils::global_read;
+use sel4_task::{activateThread, get_currenct_thread, get_current_domain, schedule};
 
 use super::instruction::*;
 
@@ -28,7 +31,6 @@ pub fn handleVMFaultEvent(vm_faultType: usize) -> exception_t {
     }
     schedule();
     activateThread();
-    log::debug!("active thread");
     exception_t::EXCEPTION_NONE
 }
 
@@ -54,11 +56,7 @@ pub fn handle_vm_fault(type_: usize) -> exception_t {
             word_t pc, fault;
             pc = getRestartPC(thread);
             fault = getIFSR();
-    #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
-            if (ARCH_NODE_STATE(armHSVCPUActive)) {
-                pc = GET_PAR_ADDR(addressTranslateS1(pc)) | (pc & MASK(PAGE_BITS));
-            }
-    #endif
+
             current_fault = seL4_Fault_VMFault_new(pc, fault, true);
             return EXCEPTION_FAULT;
         }
@@ -69,17 +67,32 @@ pub fn handle_vm_fault(type_: usize) -> exception_t {
     */
     // ARMDataAbort = seL4_DataFault,               0
     // ARMPrefetchAbort = seL4_InstructionFault     1
-    log::debug!("Handle VM fault: {}", type_);
+    log::debug!(
+        "Handle VM fault: {}  domain: {}",
+        type_,
+        get_current_domain()
+    );
     match type_ {
         ARMDataAbort => {
             let addr = get_far();
             let fault = get_esr();
             log::debug!("fault addr: {:#x} esr: {:#x}", addr, fault);
-            seL4_Fault_t::new_vm_fault(addr, fault, 0);
+            unsafe {
+                current_fault = seL4_Fault_t::new_vm_fault(addr, fault, 0);
+            }
+            log::debug!("current_fault: {:#x?}", global_read!(current_fault));
             exception_t::EXCEPTION_FAULT
         }
         ARMPrefetchAbort => {
-            todo!("prefetch Abort");
+            let pc = get_currenct_thread().tcbArch.get_register(ArchReg::FaultIP);
+            let fault = get_esr();
+            unsafe {
+                current_fault = seL4_Fault_t::new_vm_fault(pc, fault, 1);
+            }
+
+            log::debug!("ttbr0_el1: {:#x?}", TTBR0_EL1.get());
+
+            log::debug!("fault pc: {:#x}  fault: {:#x}", pc, fault);
             exception_t::EXCEPTION_FAULT
         }
         _ => panic!("Invalid VM fault type:{}", type_),
