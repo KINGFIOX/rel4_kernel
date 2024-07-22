@@ -262,8 +262,8 @@ pub fn preemptionPoint() -> exception_t {
 }
 
 #[no_mangle]
-#[cfg(target_arch = "riscv64")]
 pub fn deleteASID(asid: asid_t, vspace: *mut PTE) {
+	// TODO: use PGDE to realize the deleteASID in aarch64
     unsafe {
         if let Err(lookup_fault) = delete_asid(
             asid,
@@ -273,11 +273,6 @@ pub fn deleteASID(asid: asid_t, vspace: *mut PTE) {
             current_lookup_fault = lookup_fault;
         }
     }
-}
-#[no_mangle]
-#[cfg(target_arch = "aarch64")]
-pub fn deleteASID(asid: asid_t, vspace: *mut PGDE) {
-    todo!()
 }
 
 #[no_mangle]
