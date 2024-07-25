@@ -41,6 +41,9 @@ jobs:
     container:
       image: yfblock/rel4-dev:1.0-CI
       options: --user=root
+    strategy:
+      matrix:
+        platform: [spike, qemu-arm-virt]
     defaults:
       run:
         working-directory: ./sel4-test
@@ -60,7 +63,7 @@ jobs:
     - run: cd kernel && git checkout mi_dev
     - run: cd rel4_kernel && git checkout ${{ github.sha }}
     - name: Build
-      run: cd rel4_kernel && ./build.py
+      run: cd rel4_kernel && ./build.py -p ${{ matrix.platform }}
     - name: simulate
       run: cd rel4_kernel/build && ./simulate > 1.log
       timeout-minutes: 2
