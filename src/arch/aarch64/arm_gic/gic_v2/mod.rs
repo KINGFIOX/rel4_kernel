@@ -1,8 +1,8 @@
 pub mod consts;
 pub mod gic_v2;
 
-pub use gic_v2::irq_enable;
 use core::ptr::NonNull;
+pub use gic_v2::irq_enable;
 use tock_registers::register_structs;
 use tock_registers::registers::{ReadOnly, ReadWrite, WriteOnly};
 

@@ -141,7 +141,7 @@ fn decode_page_table_invocation(
         return exception_t::EXCEPTION_SYSCALL_ERROR;
     }
 
-    let pd_slot = PTE(vspace_root).lookup_pd_slot(vaddr);
+    let pd_slot = PGDE::new_from_pte(vspace_root).lookup_pd_slot(vaddr);
 
     if pd_slot.status != exception_t::EXCEPTION_NONE {
         global_ops!(current_syscall_error._type = seL4_FailedLookup);
@@ -490,7 +490,7 @@ fn decode_frame_map(
     // frame_slot.cap.set_frame_mapped_asid(asid);
     // frame_slot.cap.set_frame_mapped_address(vaddr);
 
-    let vspace_root = PTE(vspace_root);
+    let vspace_root = PGDE::new_from_pte(vspace_root);
     let base = pptr_to_paddr(frame_slot.cap.get_frame_base_ptr());
     match frame_size {
         ARM_Small_Page => {
@@ -729,7 +729,98 @@ fn decode_vspace_root_invocation(
     cte: &mut cte_t,
     buffer: Option<&seL4_IPCBuffer>,
 ) -> exception_t {
-    todo!();
+    match label {
+        MessageLabel::ARMVSpaceClean_Data
+        | MessageLabel::ARMVSpaceInvalidate_Data
+        | MessageLabel::ARMVSpaceCleanInvalidate_Data
+        | MessageLabel::ARMVSpaceUnify_Instruction => {
+            if length < 2 {
+                debug!("VSpaceRoot Flush: Truncated message.");
+                unsafe {
+                    current_syscall_error._type = seL4_TruncatedMessage;
+                    return exception_t::EXCEPTION_SYSCALL_ERROR;
+                }
+            }
+            let start = get_syscall_arg(0, buffer);
+            let end = get_syscall_arg(1, buffer);
+            if end <= start {
+                debug!("VSpaceRoot Flush: Invalid range.");
+                unsafe {
+                    current_syscall_error._type = seL4_InvalidArgument;
+                    current_syscall_error.invalidArgumentNumber = 1;
+                    return exception_t::EXCEPTION_SYSCALL_ERROR;
+                }
+            }
+            if end > USER_TOP {
+                debug!("VSpaceRoot Flush: Exceed the user addressable region.");
+                unsafe { current_syscall_error._type = seL4_IllegalOperation };
+                return exception_t::EXCEPTION_SYSCALL_ERROR;
+            }
+            if !cte.cap.is_valid_native_root() {
+                unsafe {
+                    current_syscall_error._type = seL4_InvalidCapability;
+                    current_syscall_error.invalidCapNumber = 0
+                };
+                return exception_t::EXCEPTION_SYSCALL_ERROR;
+            }
+			let vspace_root = PGDE::new_from_pte(cte.cap.get_pgd_base_ptr());
+			let asid=cte.cap.get_asid_base();
+			let find_ret = find_vspace_for_asid(asid);
+			if find_ret.status != exception_t::EXCEPTION_NONE{
+				debug!("VSpaceRoot Flush: No VSpace for ASID");
+				unsafe {
+					current_syscall_error._type = seL4_FailedLookup;
+					current_syscall_error.failedLookupWasSource = 0;
+					return exception_t::EXCEPTION_SYSCALL_ERROR;
+				}
+			}
+			if find_ret.vspace_root.unwrap() as usize  != vspace_root.get_ptr(){
+				debug!("VSpaceRoot Flush: Invalid VSpace Cap");
+				unsafe{
+					current_syscall_error._type = seL4_InvalidCapability;
+					current_syscall_error.invalidCapNumber = 0;
+				}
+				return exception_t::EXCEPTION_SYSCALL_ERROR;
+			}
+			// let resolve_ret = vspace_root.lookup
+        }
+        _ => {
+            unsafe { current_syscall_error._type = seL4_IllegalOperation };
+            return exception_t::EXCEPTION_SYSCALL_ERROR;
+        }
+    }
+
+    //         /* Look up the frame containing 'start'. */
+    //         resolve_ret = lookupFrame(vspaceRoot, start);
+
+    //         if (!resolve_ret.valid) {
+    //             /* Fail silently, as there can't be any stale cached data (for the
+    //              * given address space), and getting a syscall error because the
+    //              * relevant page is non-resident would be 'astonishing'. */
+    //             setThreadState(NODE_STATE(ksCurThread), ThreadState_Restart);
+    //             return EXCEPTION_NONE;
+    //         }
+
+    //         /* Refuse to cross a page boundary. */
+    //         if (PAGE_BASE(start, resolve_ret.frameSize) != PAGE_BASE(end - 1, resolve_ret.frameSize)) {
+    //             current_syscall_error.type = seL4_RangeError;
+    //             current_syscall_error.rangeErrorMin = start;
+    //             current_syscall_error.rangeErrorMax = PAGE_BASE(start, resolve_ret.frameSize) +
+    //                                                   MASK(pageBitsForSize(resolve_ret.frameSize));
+    //             return EXCEPTION_SYSCALL_ERROR;
+    //         }
+
+    //         /* Calculate the physical start address. */
+    //         pstart = resolve_ret.frameBase + PAGE_OFFSET(start, resolve_ret.frameSize);
+
+    //         setThreadState(NODE_STATE(ksCurThread), ThreadState_Restart);
+    //         return performVSpaceFlush(invLabel, vspaceRoot, asid, start, end - 1, pstart);
+
+    //     default:
+    //         current_syscall_error.type = seL4_IllegalOperation;
+    //         return EXCEPTION_SYSCALL_ERROR;
+    //     }
+    // }
     exception_t::EXCEPTION_NONE
 }
 
@@ -806,7 +897,7 @@ fn decode_page_upper_directory_invocation(
     // Ensure that pgd is aligned 4K.
     assert!(pgd & MASK!(PAGE_BITS) == 0);
 
-    let pgd_slot = PTE(pgd).lookup_pgd_slot(vaddr);
+    let pgd_slot = PGDE::new_from_pte(pgd).lookup_pgd_slot(vaddr);
 
     if unlikely(ptr_to_ref(pgd_slot.pgdSlot).get_present()) {
         global_ops!(current_syscall_error._type = seL4_DeleteFirst);
@@ -892,7 +983,7 @@ fn decode_page_directory_invocation(
         return exception_t::EXCEPTION_SYSCALL_ERROR;
     }
 
-    let pud_slot = PTE(vspace_root).lookup_pud_slot(vaddr);
+    let pud_slot = PGDE::new_from_pte(vspace_root).lookup_pud_slot(vaddr);
 
     if pud_slot.status != exception_t::EXCEPTION_NONE {
         global_ops!(current_syscall_error._type = seL4_FailedLookup);

@@ -119,8 +119,7 @@ pub fn mask_interrupt(disable: bool, irq: usize) {
         if irq == KERNEL_TIMER_IRQ {
             if disable {
                 log::info!("disable interrupt: {}", irq);
-            }
-            else {
+            } else {
                 crate::arch::arm_gic::gic_v2::irq_enable(irq);
             }
         }
@@ -236,7 +235,7 @@ pub fn getActiveIRQ() -> usize {
     }
     let irq = match global_ops!(IS_IRQ_VALID(active_irq[cpu_id()])) {
         true => global_ops!(active_irq[cpu_id()] & IRQ_MASK as usize),
-        false => irqInvalid
+        false => irqInvalid,
     };
     log::debug!("active irq: {}", irq);
     irq
