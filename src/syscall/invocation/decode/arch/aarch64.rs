@@ -1,4 +1,6 @@
 use crate::arch::set_vm_root_for_flush;
+use crate::boot::rootserver;
+use crate::compatibility::setThreadState;
 use crate::config::{seL4_ASIDPoolBits, USER_TOP};
 use crate::kernel::boot::{current_extra_caps, get_extra_cap_by_index};
 use crate::syscall::invocation::decode::current_syscall_error;
@@ -30,9 +32,7 @@ use sel4_common::{BIT, IS_ALIGNED};
 use sel4_cspace::interface::{cap_t, cte_insert, cte_t, CapTag};
 
 use sel4_vspace::{
-    asid_map_t, asid_pool_t, find_vspace_for_asid, get_asid_pool_by_index, makeUser3rdLevel,
-    make_user_1st_level, make_user_2nd_level, pptr_to_paddr, set_asid_pool_by_index,
-    vm_attributes_t, PDE, PGDE, PTE, PUDE,
+    asid_map_t, asid_pool_t, asid_t, find_vspace_for_asid, get_asid_pool_by_index, makeUser3rdLevel, make_user_1st_level, make_user_2nd_level, paddr_t, pptr_to_paddr, set_asid_pool_by_index, set_vm_root, vm_attributes_t, vptr_t, PDE, PGDE, PTE, PUDE
 };
 
 use crate::syscall::invocation::invoke_mmu_op::{
@@ -782,45 +782,51 @@ fn decode_vspace_root_invocation(
 				}
 				return exception_t::EXCEPTION_SYSCALL_ERROR;
 			}
-			// let resolve_ret = vspace_root.lookup
+			let resolve_ret = vspace_root.lookup_frame(start);
+			if !resolve_ret.valid {
+				get_currenct_thread().set_state(ThreadState::ThreadStateRestart);
+				return exception_t::EXCEPTION_NONE;
+			}
+			let page_base_start = start & !MASK!(pageBitsForSize(resolve_ret.frameSize));
+			let page_base_end = (end-1) & !MASK!(pageBitsForSize(resolve_ret.frameSize));
+			if page_base_start != page_base_end{
+				unsafe{
+					current_syscall_error._type=seL4_RangeError;
+					current_syscall_error.rangeErrorMin = start;
+					current_syscall_error.rangeErrorMax = page_base_start + MASK!(pageBitsForSize(resolve_ret.frameSize));
+				}
+				return exception_t::EXCEPTION_SYSCALL_ERROR;
+			}
+			let pstart = resolve_ret.frameBase + start & MASK!(pageBitsForSize(resolve_ret.frameSize));
+			get_currenct_thread().set_state(ThreadState::ThreadStateRestart);
+			return decode_vspace_flush_invocation(label,find_ret.vspace_root.unwrap() as usize,asid,start,end,paddr_t::from(pstart));
         }
         _ => {
             unsafe { current_syscall_error._type = seL4_IllegalOperation };
             return exception_t::EXCEPTION_SYSCALL_ERROR;
         }
     }
+}
 
-    //         /* Look up the frame containing 'start'. */
-    //         resolve_ret = lookupFrame(vspaceRoot, start);
-
-    //         if (!resolve_ret.valid) {
-    //             /* Fail silently, as there can't be any stale cached data (for the
-    //              * given address space), and getting a syscall error because the
-    //              * relevant page is non-resident would be 'astonishing'. */
-    //             setThreadState(NODE_STATE(ksCurThread), ThreadState_Restart);
-    //             return EXCEPTION_NONE;
-    //         }
-
-    //         /* Refuse to cross a page boundary. */
-    //         if (PAGE_BASE(start, resolve_ret.frameSize) != PAGE_BASE(end - 1, resolve_ret.frameSize)) {
-    //             current_syscall_error.type = seL4_RangeError;
-    //             current_syscall_error.rangeErrorMin = start;
-    //             current_syscall_error.rangeErrorMax = PAGE_BASE(start, resolve_ret.frameSize) +
-    //                                                   MASK(pageBitsForSize(resolve_ret.frameSize));
-    //             return EXCEPTION_SYSCALL_ERROR;
-    //         }
-
-    //         /* Calculate the physical start address. */
-    //         pstart = resolve_ret.frameBase + PAGE_OFFSET(start, resolve_ret.frameSize);
-
-    //         setThreadState(NODE_STATE(ksCurThread), ThreadState_Restart);
-    //         return performVSpaceFlush(invLabel, vspaceRoot, asid, start, end - 1, pstart);
-
-    //     default:
-    //         current_syscall_error.type = seL4_IllegalOperation;
-    //         return EXCEPTION_SYSCALL_ERROR;
-    //     }
-    // }
+fn decode_vspace_flush_invocation(
+	label: MessageLabel,
+	vspace:usize,
+	asid:asid_t,
+	start:vptr_t,
+	end:vptr_t,
+	pstart:paddr_t,
+) ->exception_t{
+	if start < end{		
+		let root_switched = set_vm_root_for_flush(vspace, asid);
+		log::warn!(
+            "need to flush cache for decode_page_clean_invocation label: {:?}",
+            label
+        );
+		todo!();
+		// if root_switched {
+		// 	set_vm_root(vspace);
+		// }
+	}
     exception_t::EXCEPTION_NONE
 }
 
