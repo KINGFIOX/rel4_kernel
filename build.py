@@ -21,7 +21,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--baseline', dest="baseline", action="store_true",
                         help="baseline switch")
-    # parser.add_argument('-a', '--arch', dest="architecture", default="riscv64", help="build architecture")
+    parser.add_argument('-a', '--arch', dest="architecture", default="riscv64", help="build architecture")
     parser.add_argument('-p', '--platform', dest='platform', default='spike', help="set-platform")
     parser.add_argument('-c', '--cpu', dest="cpu_nums", type=int,
                         help="kernel & qemu cpu nums", default=1)
@@ -43,10 +43,13 @@ if __name__ == "__main__":
     progname = sys.argv[0]
 
     target = ""
-    if args.platform == "spike":
+    platform = ""
+    if args.arch == "riscv64":
         target = "riscv64imac-unknown-none-elf"
-    elif args.platform == "qemu-arm-virt":
+        platform = "spike"
+    elif args.arch == "aarch64":
         target = "aarch64-unknown-none-softfloat"
+        platform = "qemu-arm-virt"
     
     if os.path.exists(build_dir):
         shutil.rmtree(build_dir)
@@ -67,12 +70,12 @@ if __name__ == "__main__":
                 sys.exit(-1)
     
     if args.cpu_nums > 1:
-        shell_command = f"cd ./build && ../../init-build.sh  -DPLATFORM={args.platform} -DSIMULATION=TRUE -DSMP=TRUE && ninja"
+        shell_command = f"cd ./build && ../../init-build.sh  -DPLATFORM={platform} -DSIMULATION=TRUE -DSMP=TRUE && ninja"
         if not exec_shell(shell_command):
             clean_config()
             sys.exit(-1)
         sys.exit(0)
-    shell_command = f"cd ./build && ../../init-build.sh  -DPLATFORM={args.platform} -DSIMULATION=TRUE && ninja"
+    shell_command = f"cd ./build && ../../init-build.sh  -DPLATFORM={platform} -DSIMULATION=TRUE && ninja"
     if not exec_shell(shell_command):
         clean_config()
         sys.exit(-1)
