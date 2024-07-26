@@ -116,7 +116,7 @@ pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret {
         CapTag::CapPageTableCap => {
             if final_ && cap.get_pt_is_mapped() == 1 {
                 let pte = ptr_to_mut(cap.get_pt_base_ptr() as *mut PTE);
-				unmap_page_table(cap.get_pt_mapped_asid(),cap.get_pt_mapped_address(),pte);
+                unmap_page_table(cap.get_pt_mapped_asid(), cap.get_pt_mapped_address(), pte);
             }
         }
         CapTag::CapASIDPoolCap => {

@@ -15,19 +15,20 @@ use sel4_common::{
 use sel4_cspace::interface::{cap_t, cte_insert, cte_t};
 use sel4_task::{get_currenct_thread, set_thread_state, ThreadState};
 use sel4_vspace::{
-    asid_pool_t, pptr_t, pptr_to_paddr, set_asid_pool_by_index, unmapPage, unmap_page_table, vm_attributes_t, PTEFlags, PTE
+    asid_pool_t, pptr_t, pptr_to_paddr, set_asid_pool_by_index, unmapPage, unmap_page_table,
+    vm_attributes_t, PTEFlags, PTE,
 };
+#[cfg(target_arch = "aarch64")]
+use sel4_vspace::{clean_by_va_pou, invalidate_tlb_by_asid_va, PDE, PUDE};
 #[cfg(target_arch = "riscv64")]
 use sel4_vspace::{copyGlobalMappings, sfence};
-#[cfg(target_arch = "aarch64")]
-use sel4_vspace::{invalidate_tlb_by_asid_va, PDE, PUDE};
 
 use crate::{kernel::boot::current_lookup_fault, utils::clear_memory};
 
 pub fn invoke_page_table_unmap(cap: &mut cap_t) -> exception_t {
     if cap.get_pt_is_mapped() != 0 {
         let pt = convert_to_mut_type_ref::<PTE>(cap.get_pt_base_ptr());
-        unmap_page_table(cap.get_pt_mapped_asid(), cap.get_pt_mapped_address(),pt);
+        unmap_page_table(cap.get_pt_mapped_asid(), cap.get_pt_mapped_address(), pt);
         clear_memory(pt.get_ptr() as *mut u8, seL4_PageTableBits)
     }
     cap.set_pt_is_mapped(0);
@@ -62,13 +63,7 @@ pub fn invoke_page_table_map(
     pt_cap.set_pt_is_mapped(1);
     pt_cap.set_pt_mapped_asid(asid);
     pt_cap.set_pt_mapped_address(vaddr);
-    unsafe {
-        asm!(
-            "dc cvau, {}",
-            "dmb sy",
-            in(reg) pd_slot,
-        );
-    }
+    clean_by_va_pou(pd_slot.get_ptr(),pptr_to_paddr(pd_slot.get_ptr()));
     exception_t::EXCEPTION_NONE
 }
 
@@ -140,13 +135,7 @@ pub fn invoke_huge_page_map(
     frame_slot.cap.set_frame_mapped_address(vaddr);
     frame_slot.cap.set_frame_mapped_asid(asid);
     *pudSlot = pude;
-    unsafe {
-        asm!(
-            "dc cvau, {}",
-            "dmb sy",
-            in(reg) pudSlot,
-        );
-    }
+    clean_by_va_pou(pudSlot.get_ptr(),pptr_to_paddr(pudSlot.get_ptr()));
     let tlbflush_required = pudSlot.get_pude_type() == 1;
     if tlbflush_required {
         assert!(asid < BIT!(16));
@@ -166,13 +155,7 @@ pub fn invoke_large_page_map(
     frame_slot.cap.set_frame_mapped_address(vaddr);
     frame_slot.cap.set_frame_mapped_asid(asid);
     *pdSlot = pde;
-    unsafe {
-        asm!(
-            "dc cvau, {}",
-            "dmb sy",
-            in(reg) pdSlot,
-        );
-    }
+    clean_by_va_pou(pdSlot.get_ptr(),pptr_to_paddr(pdSlot.get_ptr()));
     let tlbflush_required = pdSlot.get_pde_type() == 1;
     if tlbflush_required {
         assert!(asid < BIT!(16));
@@ -192,13 +175,7 @@ pub fn invoke_small_page_map(
     frame_slot.cap.set_frame_mapped_address(vaddr);
     frame_slot.cap.set_frame_mapped_asid(asid);
     *ptSlot = pte;
-    unsafe {
-        asm!(
-            "dc cvau, {}",
-            "dmb sy",
-            in(reg) ptSlot,
-        );
-    }
+    clean_by_va_pou(ptSlot.get_ptr(),pptr_to_paddr(ptSlot.get_ptr()));
     let tlbflush_required = ptSlot.pte_ptr_get_present();
     if tlbflush_required {
         assert!(asid < BIT!(16));

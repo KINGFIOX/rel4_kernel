@@ -32,7 +32,9 @@ use sel4_common::{BIT, IS_ALIGNED};
 use sel4_cspace::interface::{cap_t, cte_insert, cte_t, CapTag};
 
 use sel4_vspace::{
-    asid_map_t, asid_pool_t, asid_t, find_vspace_for_asid, get_asid_pool_by_index, makeUser3rdLevel, make_user_1st_level, make_user_2nd_level, paddr_t, pptr_to_paddr, set_asid_pool_by_index, set_vm_root, vm_attributes_t, vptr_t, PDE, PGDE, PTE, PUDE
+    asid_map_t, asid_pool_t, asid_t, clean_by_va_pou, find_vspace_for_asid, get_asid_pool_by_index,
+    makeUser3rdLevel, make_user_1st_level, make_user_2nd_level, paddr_t, pptr_to_paddr,
+    set_asid_pool_by_index, set_vm_root, vm_attributes_t, vptr_t, PDE, PGDE, PTE, PUDE,
 };
 
 use crate::syscall::invocation::invoke_mmu_op::{
@@ -162,7 +164,7 @@ fn decode_page_table_invocation(
     get_currenct_thread().set_state(ThreadState::ThreadStateRestart);
 
     *ptr_to_mut(pd_slot.pdSlot) = pde;
-    log::warn!("Need to clean D-Cache using cleanByVA_PoU");
+    clean_by_va_pou(pd_slot.pdSlot as *const _ as usize,pptr_to_paddr(pd_slot.pdSlot as *const _ as usize));
     exception_t::EXCEPTION_NONE
 }
 
@@ -763,43 +765,52 @@ fn decode_vspace_root_invocation(
                 };
                 return exception_t::EXCEPTION_SYSCALL_ERROR;
             }
-			let vspace_root = PGDE::new_from_pte(cte.cap.get_pgd_base_ptr());
-			let asid=cte.cap.get_asid_base();
-			let find_ret = find_vspace_for_asid(asid);
-			if find_ret.status != exception_t::EXCEPTION_NONE{
-				debug!("VSpaceRoot Flush: No VSpace for ASID");
-				unsafe {
-					current_syscall_error._type = seL4_FailedLookup;
-					current_syscall_error.failedLookupWasSource = 0;
-					return exception_t::EXCEPTION_SYSCALL_ERROR;
-				}
-			}
-			if find_ret.vspace_root.unwrap() as usize  != vspace_root.get_ptr(){
-				debug!("VSpaceRoot Flush: Invalid VSpace Cap");
-				unsafe{
-					current_syscall_error._type = seL4_InvalidCapability;
-					current_syscall_error.invalidCapNumber = 0;
-				}
-				return exception_t::EXCEPTION_SYSCALL_ERROR;
-			}
-			let resolve_ret = vspace_root.lookup_frame(start);
-			if !resolve_ret.valid {
-				get_currenct_thread().set_state(ThreadState::ThreadStateRestart);
-				return exception_t::EXCEPTION_NONE;
-			}
-			let page_base_start = start & !MASK!(pageBitsForSize(resolve_ret.frameSize));
-			let page_base_end = (end-1) & !MASK!(pageBitsForSize(resolve_ret.frameSize));
-			if page_base_start != page_base_end{
-				unsafe{
-					current_syscall_error._type=seL4_RangeError;
-					current_syscall_error.rangeErrorMin = start;
-					current_syscall_error.rangeErrorMax = page_base_start + MASK!(pageBitsForSize(resolve_ret.frameSize));
-				}
-				return exception_t::EXCEPTION_SYSCALL_ERROR;
-			}
-			let pstart = resolve_ret.frameBase + start & MASK!(pageBitsForSize(resolve_ret.frameSize));
-			get_currenct_thread().set_state(ThreadState::ThreadStateRestart);
-			return decode_vspace_flush_invocation(label,find_ret.vspace_root.unwrap() as usize,asid,start,end,paddr_t::from(pstart));
+            let vspace_root = PGDE::new_from_pte(cte.cap.get_pgd_base_ptr());
+            let asid = cte.cap.get_asid_base();
+            let find_ret = find_vspace_for_asid(asid);
+            if find_ret.status != exception_t::EXCEPTION_NONE {
+                debug!("VSpaceRoot Flush: No VSpace for ASID");
+                unsafe {
+                    current_syscall_error._type = seL4_FailedLookup;
+                    current_syscall_error.failedLookupWasSource = 0;
+                    return exception_t::EXCEPTION_SYSCALL_ERROR;
+                }
+            }
+            if find_ret.vspace_root.unwrap() as usize != vspace_root.get_ptr() {
+                debug!("VSpaceRoot Flush: Invalid VSpace Cap");
+                unsafe {
+                    current_syscall_error._type = seL4_InvalidCapability;
+                    current_syscall_error.invalidCapNumber = 0;
+                }
+                return exception_t::EXCEPTION_SYSCALL_ERROR;
+            }
+            let resolve_ret = vspace_root.lookup_frame(start);
+            if !resolve_ret.valid {
+                get_currenct_thread().set_state(ThreadState::ThreadStateRestart);
+                return exception_t::EXCEPTION_NONE;
+            }
+            let page_base_start = start & !MASK!(pageBitsForSize(resolve_ret.frameSize));
+            let page_base_end = (end - 1) & !MASK!(pageBitsForSize(resolve_ret.frameSize));
+            if page_base_start != page_base_end {
+                unsafe {
+                    current_syscall_error._type = seL4_RangeError;
+                    current_syscall_error.rangeErrorMin = start;
+                    current_syscall_error.rangeErrorMax =
+                        page_base_start + MASK!(pageBitsForSize(resolve_ret.frameSize));
+                }
+                return exception_t::EXCEPTION_SYSCALL_ERROR;
+            }
+            let pstart =
+                resolve_ret.frameBase + start & MASK!(pageBitsForSize(resolve_ret.frameSize));
+            get_currenct_thread().set_state(ThreadState::ThreadStateRestart);
+            return decode_vspace_flush_invocation(
+                label,
+                find_ret.vspace_root.unwrap() as usize,
+                asid,
+                start,
+                end,
+                paddr_t::from(pstart),
+            );
         }
         _ => {
             unsafe { current_syscall_error._type = seL4_IllegalOperation };
@@ -809,24 +820,24 @@ fn decode_vspace_root_invocation(
 }
 
 fn decode_vspace_flush_invocation(
-	label: MessageLabel,
-	vspace:usize,
-	asid:asid_t,
-	start:vptr_t,
-	end:vptr_t,
-	pstart:paddr_t,
-) ->exception_t{
-	if start < end{		
-		let root_switched = set_vm_root_for_flush(vspace, asid);
-		log::warn!(
+    label: MessageLabel,
+    vspace: usize,
+    asid: asid_t,
+    start: vptr_t,
+    end: vptr_t,
+    pstart: paddr_t,
+) -> exception_t {
+    if start < end {
+        let root_switched = set_vm_root_for_flush(vspace, asid);
+        log::warn!(
             "need to flush cache for decode_page_clean_invocation label: {:?}",
             label
         );
-		todo!();
-		// if root_switched {
-		// 	set_vm_root(vspace);
-		// }
-	}
+        todo!();
+        // if root_switched {
+        // 	set_vm_root(vspace);
+        // }
+    }
     exception_t::EXCEPTION_NONE
 }
 
@@ -917,7 +928,7 @@ fn decode_page_upper_directory_invocation(
 
     get_currenct_thread().set_state(ThreadState::ThreadStateRestart);
     *ptr_to_mut(pgd_slot.pgdSlot) = pgde;
-    log::warn!("Need to clean D-Cache using cleanByVA_PoU");
+    clean_by_va_pou(pgd_slot.pgdSlot as *const _ as usize,pptr_to_paddr(pgd_slot.pgdSlot as *const _ as usize));
     exception_t::EXCEPTION_NONE
 }
 fn decode_page_directory_invocation(
@@ -1009,7 +1020,7 @@ fn decode_page_directory_invocation(
     cte.cap.set_pd_mapped_address(vaddr);
     get_currenct_thread().set_state(ThreadState::ThreadStateRestart);
     *ptr_to_mut(pud_slot.pudSlot) = pude;
-    log::warn!("Need to clean D-Cache using cleanByVA_PoU");
+    clean_by_va_pou(pud_slot.pudSlot as *const _ as usize,pptr_to_paddr(pud_slot.pudSlot as *const _ as usize));
     exception_t::EXCEPTION_NONE
 }
 
