@@ -4,7 +4,9 @@ use crate::BIT;
 #[cfg(target_arch = "riscv64")]
 use core::arch::asm;
 use sel4_common::sel4_config::CONFIG_MAX_NUM_NODES;
-use sel4_common::utils::{convert_to_mut_type_ref, cpu_id, global_ops};
+#[cfg(target_arch = "aarch64")]
+use sel4_common::utils::global_ops;
+use sel4_common::utils::{convert_to_mut_type_ref, cpu_id};
 use sel4_cspace::interface::cte_t;
 use sel4_vspace::pptr_t;
 
