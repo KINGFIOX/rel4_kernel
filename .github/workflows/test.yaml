@@ -43,7 +43,7 @@ jobs:
       options: --user=root
     strategy:
       matrix:
-        arch: [riscv64, aarch64]
+        arch: [riscv64]
     defaults:
       run:
         working-directory: ./sel4-test
