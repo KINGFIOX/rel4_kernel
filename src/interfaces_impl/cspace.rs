@@ -10,9 +10,9 @@ use sel4_cspace::compatibility::{ZombieType_ZombieTCB, Zombie_new};
 use sel4_cspace::interface::{cap_t, finaliseCap_ret, CapTag};
 use sel4_ipc::{endpoint_t, notification_t, Transfer};
 use sel4_task::{get_currenct_thread, ksWorkUnitsCompleted, tcb_t};
-use sel4_vspace::{
-    asid_pool_t, asid_t, delete_asid, delete_asid_pool, find_vspace_for_asid, unmapPage, PTE,
-};
+#[cfg(target_arch = "riscv64")]
+use sel4_vspace::find_vspace_for_asid;
+use sel4_vspace::{asid_pool_t, asid_t, delete_asid, delete_asid_pool, unmapPage, PTE};
 #[cfg(target_arch = "aarch64")]
 use sel4_vspace::{
     unmap_page_directory, unmap_page_table, unmap_page_upper_directory, PDE, PGDE, PUDE,
@@ -21,8 +21,6 @@ use sel4_vspace::{
 #[cfg(target_arch = "riscv64")]
 #[no_mangle]
 pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret {
-    use sel4_vspace::unmapPage;
-
     let mut fc_ret = finaliseCap_ret::default();
     match cap.get_cap_type() {
         CapTag::CapFrameCap => {
@@ -75,7 +73,6 @@ pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret {
 #[cfg(target_arch = "aarch64")]
 pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret {
     use sel4_common::utils::ptr_to_mut;
-    use sel4_vspace::{unmapPage, unmap_page_directory, unmap_page_upper_directory, PDE, PUDE};
 
     let mut fc_ret = finaliseCap_ret::default();
     match cap.get_cap_type() {
@@ -116,7 +113,7 @@ pub fn Arch_finaliseCap(cap: &cap_t, final_: bool) -> finaliseCap_ret {
         CapTag::CapPageTableCap => {
             if final_ && cap.get_pt_is_mapped() == 1 {
                 let pte = ptr_to_mut(cap.get_pt_base_ptr() as *mut PTE);
-				unmap_page_table(cap.get_pt_mapped_asid(),cap.get_pt_mapped_address(),pte);
+                unmap_page_table(cap.get_pt_mapped_asid(), cap.get_pt_mapped_address(), pte);
             }
         }
         CapTag::CapASIDPoolCap => {

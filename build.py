@@ -21,7 +21,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--baseline', dest="baseline", action="store_true",
                         help="baseline switch")
-    parser.add_argument('-a', '--arch', dest="architecture", default="riscv64", help="build architecture")
+    parser.add_argument('-a', '--arch', dest="arch", default="riscv64", help="build architecture")
     parser.add_argument('-p', '--platform', dest='platform', default='spike', help="set-platform")
     parser.add_argument('-c', '--cpu', dest="cpu_nums", type=int,
                         help="kernel & qemu cpu nums", default=1)
@@ -44,12 +44,12 @@ if __name__ == "__main__":
 
     target = ""
     platform = ""
-    if args.arch == "riscv64":
-        target = "riscv64imac-unknown-none-elf"
-        platform = "spike"
-    elif args.arch == "aarch64":
+    if args.arch == "aarch64" or args.platform == "qemu-arm-virt":
         target = "aarch64-unknown-none-softfloat"
         platform = "qemu-arm-virt"
+    elif args.arch == "riscv64" or args.platform == "spike":
+        target = "riscv64imac-unknown-none-elf"
+        platform = "spike"
     
     if os.path.exists(build_dir):
         shutil.rmtree(build_dir)

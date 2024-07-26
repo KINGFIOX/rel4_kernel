@@ -15,7 +15,8 @@ use sel4_common::{
 use sel4_cspace::interface::{cap_t, cte_insert, cte_t};
 use sel4_task::{get_currenct_thread, set_thread_state, ThreadState};
 use sel4_vspace::{
-    asid_pool_t, pptr_t, pptr_to_paddr, set_asid_pool_by_index, unmapPage, unmap_page_table, vm_attributes_t, PTEFlags, PTE
+    asid_pool_t, pptr_t, pptr_to_paddr, set_asid_pool_by_index, unmapPage, unmap_page_table,
+    vm_attributes_t, PTEFlags, PTE,
 };
 #[cfg(target_arch = "riscv64")]
 use sel4_vspace::{copyGlobalMappings, sfence};
@@ -27,7 +28,7 @@ use crate::{kernel::boot::current_lookup_fault, utils::clear_memory};
 pub fn invoke_page_table_unmap(cap: &mut cap_t) -> exception_t {
     if cap.get_pt_is_mapped() != 0 {
         let pt = convert_to_mut_type_ref::<PTE>(cap.get_pt_base_ptr());
-        unmap_page_table(cap.get_pt_mapped_asid(), cap.get_pt_mapped_address(),pt);
+        unmap_page_table(cap.get_pt_mapped_asid(), cap.get_pt_mapped_address(), pt);
         clear_memory(pt.get_ptr() as *mut u8, seL4_PageTableBits)
     }
     cap.set_pt_is_mapped(0);
