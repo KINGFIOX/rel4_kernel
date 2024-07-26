@@ -55,8 +55,9 @@ jobs:
         toolchain: nightly-2024-02-01
         components: rust-src
         rustflags: 
+        target: aarch64-unknown-none-softfloat
     - name: Install qemu
-      run: apt update && apt -y install qemu-system-misc && apt -y install qemu-system-aarch64 && apt install -y aarch64-linux-gnu-gcc  && apt install -y wget g++-${{ matrix.arch }}-linux-gnu
+      run: apt update && apt -y install qemu-system-misc && apt -y install qemu-system-aarch64 && apt install -y wget gcc-${{ matrix.arch }}-linux-gnu && apt install -y wget g++-${{ matrix.arch }}-linux-gnu
     - name: Clone Menifest && Sync repositories
       run: repo init -u https://github.com/rel4team/sel4test-manifest.git -b v1.0 && repo sync
     - run: cd kernel && git checkout mi_dev
