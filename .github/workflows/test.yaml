@@ -55,7 +55,6 @@ jobs:
         toolchain: nightly-2024-02-01
         components: rust-src
         rustflags: 
-        target: riscv64imac-unknown-none-elf
     - name: Install qemu
       run: apt update && apt -y install qemu-system-misc && apt -y install qemu-system-aarch64 && apt install -y wget gcc-${{ matrix.arch }}-linux-gnu && apt install -y wget g++-${{ matrix.arch }}-linux-gnu
     - name: Clone Menifest && Sync repositories
